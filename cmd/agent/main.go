@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"reflect"
@@ -184,6 +185,9 @@ func sendPayload(endpoint string, m Monitor) {
 		//fmt.Printf("%d: %s %s = %v\n", i, metricName, dataType, metricValue)
 
 		resp, err := PostValue(endpoint, metricType, metricName, fmt.Sprint(metricValue))
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+
 		if err != nil {
 			fmt.Printf("ERROR posting value: %s, %s", metricName, err)
 		}
