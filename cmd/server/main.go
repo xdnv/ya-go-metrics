@@ -118,7 +118,13 @@ func index(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, fmt.Sprintf(pageTmpl, "Metrics", tableOut))
 }
 
-func extractValidateMetricRequest(mURL string) (*MetricRequest, error) {
+type appError struct {
+	Error   error
+	Message string
+	Code    int
+}
+
+func extractValidateMetricRequest(mURL string) (*MetricRequest, *appError) {
 
 	mr := new(MetricRequest)
 
@@ -137,7 +143,8 @@ func extractValidateMetricRequest(mURL string) (*MetricRequest, error) {
 	//check for expected query structure
 	numParams := len(metricParams)
 	if numParams != 3 {
-		return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
+		//return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
+		return mr, &appError{fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams), "", http.StatusNotFound}
 	}
 
 	mr.Mode = metricParams[0]
@@ -146,15 +153,18 @@ func extractValidateMetricRequest(mURL string) (*MetricRequest, error) {
 	mr.Value = metricValue
 
 	if !slices.Contains([]string{"update", "value"}, mr.Mode) {
-		return mr, fmt.Errorf("unexpected metric processing mode: %s", mr.Mode)
+		//return mr, fmt.Errorf("unexpected metric processing mode: %s", mr.Mode)
+		return mr, &appError{fmt.Errorf("unexpected metric processing mode: %s", mr.Mode), "", http.StatusBadRequest}
 	}
 
 	if !slices.Contains([]string{"gauge", "counter"}, mr.Type) {
-		return mr, fmt.Errorf("unexpected metric type: %s", mr.Mode)
+		//return mr, fmt.Errorf("unexpected metric type: %s", mr.Mode)
+		return mr, &appError{fmt.Errorf("unexpected metric type: %s", mr.Mode), "", http.StatusBadRequest}
 	}
 
 	if (mr.Mode == "update") && (metricValue == "") {
-		return mr, errors.New("non-empty metric Value parameter expected for update request")
+		//return mr, errors.New("non-empty metric Value parameter expected for update request")
+		return mr, &appError{errors.New("non-empty metric Value parameter expected for update request"), "", http.StatusBadRequest}
 	}
 
 	return mr, nil
@@ -179,7 +189,9 @@ func requestMetric(w http.ResponseWriter, r *http.Request) {
 	mr, err := extractValidateMetricRequest(r.URL.Path)
 	if err != nil {
 		//w.WriteHeader(http.StatusBadRequest)
-		http.Error(w, "Malformed request", http.StatusBadRequest)
+
+		//http.Error(w, "Malformed request", http.StatusBadRequest)
+		http.Error(w, "Malformed request", err.Code)
 		return
 	}
 
