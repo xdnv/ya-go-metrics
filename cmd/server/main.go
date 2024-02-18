@@ -131,7 +131,7 @@ type appError struct {
 	Code    int
 }
 
-func extractValidateMetricRequest(mURL string) (*MetricRequest, *appError) {
+func extractMetricRequest(mURL string) (*MetricRequest, error) {
 
 	mr := new(MetricRequest)
 
@@ -151,9 +151,8 @@ func extractValidateMetricRequest(mURL string) (*MetricRequest, *appError) {
 	numParams := len(metricParams)
 	if numParams != 3 {
 		//return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
-		fmt.Printf("TRACE: the URL parameter quantity is %d while expected 3\n", numParams)
-		ae := appError{fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams), "", http.StatusNotFound}
-		return mr, &ae
+		//fmt.Printf("TRACE: the URL parameter quantity is %d while expected 3\n", numParams)
+		return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
 	}
 
 	mr.Mode = metricParams[0]
@@ -161,27 +160,30 @@ func extractValidateMetricRequest(mURL string) (*MetricRequest, *appError) {
 	mr.Name = metricParams[2]
 	mr.Value = metricValue
 
-	fmt.Printf("TRACE: mode[%s] type[%s] name[%s] value[%s]\n", mr.Mode, mr.Type, mr.Name, mr.Value)
+	return mr, nil
+}
+
+func validateMetricRequest(mr MetricRequest) (*MetricRequest, error) {
+
+	//fmt.Printf("TRACE: validate mode[%s] type[%s] name[%s] value[%s]\n", mr.Mode, mr.Type, mr.Name, mr.Value)
 
 	if !slices.Contains([]string{"update", "value"}, mr.Mode) {
 		//return mr, fmt.Errorf("unexpected metric processing mode: %s", mr.Mode)
-		ae := appError{fmt.Errorf("unexpected metric processing mode: %s", mr.Mode), "", http.StatusBadRequest}
-		return mr, &ae
+		return &mr, fmt.Errorf("unexpected metric processing mode: %s", mr.Mode)
 	}
 
 	if !slices.Contains([]string{"gauge", "counter"}, mr.Type) {
 		//return mr, fmt.Errorf("unexpected metric type: %s", mr.Mode)
-		ae := appError{fmt.Errorf("unexpected metric type: %s", mr.Mode), "", http.StatusBadRequest}
-		return mr, &ae
+
+		return &mr, fmt.Errorf("unexpected metric type: %s", mr.Mode)
 	}
 
-	if (mr.Mode == "update") && (metricValue == "") {
+	if (mr.Mode == "update") && (mr.Value == "") {
 		//return mr, errors.New("non-empty metric Value parameter expected for update request")
-		ae := appError{errors.New("non-empty metric Value parameter expected for update request"), "", http.StatusBadRequest}
-		return mr, &ae
+		return &mr, errors.New("non-empty metric Value parameter expected for update request")
 	}
 
-	return mr, nil
+	return &mr, nil
 }
 
 // HTTP request processing
@@ -200,12 +202,21 @@ func requestMetric(w http.ResponseWriter, r *http.Request) {
 	// установим правильный заголовок для типа данных
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-	mr, aerr := extractValidateMetricRequest(r.URL.Path)
-	if aerr != nil {
+	mr, err := extractMetricRequest(r.URL.Path)
+	if err != nil {
 		//w.WriteHeader(http.StatusBadRequest)
-		fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
+		//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
 		//http.Error(w, "Malformed request", http.StatusBadRequest)
-		http.Error(w, aerr.Error.Error(), aerr.Code)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	mr, err = validateMetricRequest(*mr)
+	if err != nil {
+		//w.WriteHeader(http.StatusBadRequest)
+		//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
+		//http.Error(w, "Malformed request", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -279,9 +290,21 @@ func updateMetric(w http.ResponseWriter, r *http.Request) {
 	// установим правильный заголовок для типа данных
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-	mr, err := extractValidateMetricRequest(r.URL.Path)
+	mr, err := extractMetricRequest(r.URL.Path)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		//w.WriteHeader(http.StatusBadRequest)
+		//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
+		//http.Error(w, "Malformed request", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	mr, err = validateMetricRequest(*mr)
+	if err != nil {
+		//w.WriteHeader(http.StatusBadRequest)
+		//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
+		//http.Error(w, "Malformed request", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
