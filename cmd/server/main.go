@@ -144,6 +144,7 @@ func extractValidateMetricRequest(mURL string) (*MetricRequest, *appError) {
 	numParams := len(metricParams)
 	if numParams != 3 {
 		//return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
+		fmt.Printf("the URL parameter quantity is %d while expected 3 [%s]\n", numParams, mURL)
 		return mr, &appError{fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams), "", http.StatusNotFound}
 	}
 
