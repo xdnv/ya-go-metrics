@@ -90,6 +90,9 @@ func index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// установим правильный заголовок для типа данных
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
 	w.WriteHeader(http.StatusOK)
 
 	const pageTmpl = `<html>
@@ -125,11 +128,11 @@ func index(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, fmt.Sprintf(pageTmpl, "Metrics", tableOut))
 }
 
-type appError struct {
-	Error   error
-	Message string
-	Code    int
-}
+// type appError struct {
+// 	Error   error
+// 	Message string
+// 	Code    int
+// }
 
 func extractMetricRequest(mURL string) (*MetricRequest, error) {
 

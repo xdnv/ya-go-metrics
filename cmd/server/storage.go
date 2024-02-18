@@ -1,18 +1,13 @@
-﻿package main
+package main
 
 import (
 	"strconv"
 	//"sync"
 )
 
-//(1.1) принимает и хранит произвольные метрики двух типов:
-//	- Тип gauge, float64 — новое значение должно замещать предыдущее.
-//	- Тип counter, int64 — новое значение должно добавляться к предыдущему, если какое-то значение уже было известно серверу.
-
-// структура метрик
+// metric structure
 type MetricMap map[string]interface{}
 
-// блок метрик. позже будет вынесен в отдельный модуль
 type Metric interface {
 	GetValue() interface{}
 	//UpdateValue(interface{}) interface{}
@@ -23,7 +18,7 @@ func GetMetricValue(t Metric) interface{} {
 	return t.GetValue()
 }
 
-// основное хранилище метрик
+// main metric storage
 type MemStorage struct {
 	//mu      sync.Mutex //TODO: https://go.dev/tour/concurrency/9
 	Metrics MetricMap
@@ -39,7 +34,7 @@ func (t Gauge) GetValue() interface{} {
 }
 
 func (t *Gauge) UpdateValue(metricValue float64) {
-	//ЗАМЕНА значения
+	//REPLACE value
 	t.Value = metricValue
 }
 
@@ -64,7 +59,7 @@ func (t Counter) GetValue() interface{} {
 }
 
 func (t *Counter) UpdateValue(metricValue int64) {
-	//ИНКРЕМЕНТ значения
+	//INCREMENT value
 	t.Value += metricValue
 }
 
@@ -79,10 +74,7 @@ func (t *Counter) UpdateValueS(metricValueS string) error {
 	return nil
 }
 
-// структура хранения метрик
-//var MetricValues = make(MetricMap)
-
-// структура хранения метрик
+// init metric storage
 func InitStorage() MemStorage {
 	return MemStorage{
 		Metrics: make(MetricMap),
