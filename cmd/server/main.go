@@ -152,7 +152,8 @@ func extractValidateMetricRequest(mURL string) (*MetricRequest, *appError) {
 	if numParams != 3 {
 		//return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
 		fmt.Printf("TRACE: the URL parameter quantity is %d while expected 3\n", numParams)
-		return mr, &appError{fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams), "", http.StatusNotFound}
+		ae := appError{fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams), "", http.StatusNotFound}
+		return mr, &ae
 	}
 
 	mr.Mode = metricParams[0]
@@ -164,17 +165,20 @@ func extractValidateMetricRequest(mURL string) (*MetricRequest, *appError) {
 
 	if !slices.Contains([]string{"update", "value"}, mr.Mode) {
 		//return mr, fmt.Errorf("unexpected metric processing mode: %s", mr.Mode)
-		return mr, &appError{fmt.Errorf("unexpected metric processing mode: %s", mr.Mode), "", http.StatusBadRequest}
+		ae := appError{fmt.Errorf("unexpected metric processing mode: %s", mr.Mode), "", http.StatusBadRequest}
+		return mr, &ae
 	}
 
 	if !slices.Contains([]string{"gauge", "counter"}, mr.Type) {
 		//return mr, fmt.Errorf("unexpected metric type: %s", mr.Mode)
-		return mr, &appError{fmt.Errorf("unexpected metric type: %s", mr.Mode), "", http.StatusBadRequest}
+		ae := appError{fmt.Errorf("unexpected metric type: %s", mr.Mode), "", http.StatusBadRequest}
+		return mr, &ae
 	}
 
 	if (mr.Mode == "update") && (metricValue == "") {
 		//return mr, errors.New("non-empty metric Value parameter expected for update request")
-		return mr, &appError{errors.New("non-empty metric Value parameter expected for update request"), "", http.StatusBadRequest}
+		ae := appError{errors.New("non-empty metric Value parameter expected for update request"), "", http.StatusBadRequest}
+		return mr, &ae
 	}
 
 	return mr, nil
