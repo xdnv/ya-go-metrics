@@ -22,6 +22,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type MetricRequest struct {
@@ -61,10 +63,17 @@ func run() error {
 
 	fmt.Printf("using endpoint: %s\n", sc.Endpoint)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, index)
-	mux.HandleFunc(`/update/`, updateMetric)
-	mux.HandleFunc(`/value/`, requestMetric)
+	//standard router library
+	// mux := http.NewServeMux()
+	// mux.HandleFunc(`/`, index)
+	// mux.HandleFunc(`/update/`, updateMetric)
+	// mux.HandleFunc(`/value/`, requestMetric)
+
+	mux := chi.NewRouter()
+
+	mux.Get("/", index)
+	mux.Get("/update/", updateMetric)
+	mux.Get("/value/", requestMetric)
 
 	//err := http.ListenAndServe(`:8080`, mux)
 	//log.Fatal(http.ListenAndServe(sc.Endpoint, mux))
