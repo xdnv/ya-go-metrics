@@ -72,8 +72,8 @@ func run() error {
 	mux := chi.NewRouter()
 
 	mux.Get("/", index)
-	mux.Get("/update/", updateMetric)
 	mux.Get("/value/", requestMetric)
+	mux.Post("/update/", updateMetric)
 
 	//err := http.ListenAndServe(`:8080`, mux)
 	//log.Fatal(http.ListenAndServe(sc.Endpoint, mux))
