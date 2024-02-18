@@ -83,6 +83,13 @@ func sortedKeys[K cmp.Ordered, V any](m map[K]V) []K {
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
+
+	//check for malformed requests
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 
 	const pageTmpl = `<html>
