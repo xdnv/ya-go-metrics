@@ -144,7 +144,6 @@ func extractValidateMetricRequest(mURL string) (*MetricRequest, *appError) {
 	numParams := len(metricParams)
 	if numParams != 3 {
 		//return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
-		fmt.Printf("the URL parameter quantity is %d while expected 3 [%s]\n", numParams, mURL)
 		return mr, &appError{fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams), "", http.StatusNotFound}
 	}
 
@@ -152,6 +151,8 @@ func extractValidateMetricRequest(mURL string) (*MetricRequest, *appError) {
 	mr.Type = metricParams[1]
 	mr.Name = metricParams[2]
 	mr.Value = metricValue
+
+	fmt.Printf("TRACE: mode[%s] type[%s] name[%s] value[%s]\n", mr.Mode, mr.Type, mr.Name, mr.Value)
 
 	if !slices.Contains([]string{"update", "value"}, mr.Mode) {
 		//return mr, fmt.Errorf("unexpected metric processing mode: %s", mr.Mode)
