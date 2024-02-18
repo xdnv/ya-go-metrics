@@ -151,7 +151,7 @@ func extractValidateMetricRequest(mURL string) (*MetricRequest, *appError) {
 	numParams := len(metricParams)
 	if numParams != 3 {
 		//return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
-		fmt.Printf("TRACE: the URL parameter quantity is %d while expected 3", numParams)
+		fmt.Printf("TRACE: the URL parameter quantity is %d while expected 3\n", numParams)
 		return mr, &appError{fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams), "", http.StatusNotFound}
 	}
 
@@ -199,7 +199,7 @@ func requestMetric(w http.ResponseWriter, r *http.Request) {
 	mr, aerr := extractValidateMetricRequest(r.URL.Path)
 	if aerr != nil {
 		//w.WriteHeader(http.StatusBadRequest)
-
+		fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
 		//http.Error(w, "Malformed request", http.StatusBadRequest)
 		http.Error(w, aerr.Error.Error(), aerr.Code)
 		return
