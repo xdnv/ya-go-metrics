@@ -25,7 +25,7 @@ func Test_index(t *testing.T) {
 		{
 			name: "001 positive root test",
 			want: want{
-				contentType: "text/plain; charset=utf-8",
+				contentType: "text/html; charset=utf-8",
 				statusCode:  200,
 				bodyHeader:  "<html>",
 			},

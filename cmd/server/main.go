@@ -17,11 +17,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
 	"net/http"
-	"path"
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -72,8 +71,8 @@ func run() error {
 	mux := chi.NewRouter()
 
 	mux.Get("/", index)
-	mux.Get("/value/", requestMetric)
-	mux.Post("/update/", updateMetric)
+	mux.Get("/value/{type}/{name}", requestMetric)
+	mux.Post("/update/{type}/{name}/{value}", updateMetric)
 
 	//err := http.ListenAndServe(`:8080`, mux)
 	//log.Fatal(http.ListenAndServe(sc.Endpoint, mux))
@@ -91,6 +90,61 @@ func sortedKeys[K cmp.Ordered, V any](m map[K]V) []K {
 	return keys
 }
 
+// const metricsHTML = `
+//  	<h1>{{.PageTitle}}</h1>
+// 	 <style>
+// 	 table, td, th {
+// 	   border: 1px solid black;
+// 	   border-spacing: 0px;
+// 	 }
+// 	 </style>
+//  	<table>
+// 		{{range .Metrics}}
+// 			{{if .Header}}
+// 				<tr><th>Metric</th><th>Value</th></tr>
+// 			{{else}}
+// 				<tr><td>{{.Title}}</td><td style=\"text-align: right;\">{{.Value}}</td></tr>
+// 			{{end}}
+// 		{{end}}
+// 	</table>
+// 	`
+
+// type MetricEntry struct {
+// 	Title  string
+// 	Value  string
+// 	Header bool
+// }
+
+// type MetricPageData struct {
+// 	PageTitle string
+// 	Metrics   []MetricEntry
+// }
+
+// func index_t(w http.ResponseWriter, r *http.Request) {
+
+// 	//check for malformed requests
+// 	if r.URL.Path != "/" {
+// 		http.NotFound(w, r)
+// 		return
+// 	}
+
+// 	// set correct datatype in header
+// 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+// 	w.WriteHeader(http.StatusOK)
+
+// 	data := new(MetricPageData)
+
+// 	data.PageTitle = "Current values"
+// 	data.Metrics = append(data.Metrics, MetricEntry{"Metric", "Value", true})
+
+// 	for _, key := range sortedKeys(storage.Metrics) {
+// 		data.Metrics = append(data.Metrics, MetricEntry{key, fmt.Sprintf("%v", storage.Metrics[key].(Metric).GetValue()), false})
+// 	}
+
+// 	tmpl := template.Must(template.New("").Parse(metricsHTML))
+// 	tmpl.Execute(w, data)
+// }
+
 func index(w http.ResponseWriter, r *http.Request) {
 
 	//check for malformed requests
@@ -100,26 +154,25 @@ func index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// установим правильный заголовок для типа данных
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
 	const pageTmpl = `<html>
-    	<head>
-    		<title>%s</title>
+		<head>
+			<title>%s</title>
 			<style>
-      		table, td, th { 
-        		border: 1px solid black;
-        		border-spacing: 0px;
-      		}
-      		td, th { 
-        		padding: 5px;
-      		}
-    		</style>
-    	</head>
-    	<body>
-        	%s
-    	</body>
+	  		table, td, th {
+	    		border: 1px solid black;
+	    		border-spacing: 0px;
+	  		}
+	  		td, th {
+	    		padding: 5px;
+	  		}
+			</style>
+		</head>
+		<body>
+	    	%s
+		</body>
 		</html>`
 
 	tableOut := "<table>"
@@ -143,34 +196,50 @@ func index(w http.ResponseWriter, r *http.Request) {
 // 	Code    int
 // }
 
-func extractMetricRequest(mURL string) (*MetricRequest, error) {
+// func extractMetricRequest(mURL string) (*MetricRequest, error) {
+
+// 	mr := new(MetricRequest)
+
+// 	//split path structure, extract metric value (if any)
+// 	metricURL, metricValue := path.Split(mURL)
+
+// 	//split configuration URL
+// 	splitFunc := func(c rune) bool {
+// 		return c == '/'
+// 	}
+// 	metricParams := strings.FieldsFunc(metricURL, splitFunc)
+
+// 	// POST http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ> + metricValue == "<ЗНАЧЕНИЕ_МЕТРИКИ>"
+// 	// GET /value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ> + metricValue == ""
+
+// 	//check for expected query structure
+// 	numParams := len(metricParams)
+// 	if numParams != 3 {
+// 		//return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
+// 		//fmt.Printf("TRACE: the URL parameter quantity is %d while expected 3\n", numParams)
+// 		return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
+// 	}
+
+// 	mr.Mode = metricParams[0]
+// 	mr.Type = metricParams[1]
+// 	mr.Name = metricParams[2]
+// 	mr.Value = metricValue
+
+// 	return mr, nil
+// }
+
+func extractMetricRequestChi(r *http.Request, mode string) (*MetricRequest, error) {
 
 	mr := new(MetricRequest)
 
-	//split path structure, extract metric value (if any)
-	metricURL, metricValue := path.Split(mURL)
+	mr.Mode = mode
+	mr.Type = chi.URLParam(r, "type")
+	mr.Name = chi.URLParam(r, "name")
+	mr.Value = ""
 
-	//split configuration URL
-	splitFunc := func(c rune) bool {
-		return c == '/'
+	if mr.Mode == "update" {
+		mr.Value = chi.URLParam(r, "value")
 	}
-	metricParams := strings.FieldsFunc(metricURL, splitFunc)
-
-	// POST http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ> + metricValue == "<ЗНАЧЕНИЕ_МЕТРИКИ>"
-	// GET /value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ> + metricValue == ""
-
-	//check for expected query structure
-	numParams := len(metricParams)
-	if numParams != 3 {
-		//return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
-		//fmt.Printf("TRACE: the URL parameter quantity is %d while expected 3\n", numParams)
-		return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
-	}
-
-	mr.Mode = metricParams[0]
-	mr.Type = metricParams[1]
-	mr.Name = metricParams[2]
-	mr.Value = metricValue
 
 	return mr, nil
 }
@@ -214,11 +283,16 @@ func requestMetric(w http.ResponseWriter, r *http.Request) {
 	// установим правильный заголовок для типа данных
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-	mr, err := extractMetricRequest(r.URL.Path)
+	// mr, err := extractMetricRequest(r.URL.Path)
+	// if err != nil {
+	// 	//w.WriteHeader(http.StatusBadRequest)
+	// 	//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
+	// 	//http.Error(w, "Malformed request", http.StatusBadRequest)
+	// 	http.Error(w, err.Error(), http.StatusNotFound)
+	// 	return
+	// }
+	mr, err := extractMetricRequestChi(r, "value")
 	if err != nil {
-		//w.WriteHeader(http.StatusBadRequest)
-		//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
-		//http.Error(w, "Malformed request", http.StatusBadRequest)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -302,11 +376,17 @@ func updateMetric(w http.ResponseWriter, r *http.Request) {
 	// установим правильный заголовок для типа данных
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-	mr, err := extractMetricRequest(r.URL.Path)
+	// mr, err := extractMetricRequest(r.URL.Path)
+	// if err != nil {
+	// 	//w.WriteHeader(http.StatusBadRequest)
+	// 	//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
+	// 	//http.Error(w, "Malformed request", http.StatusBadRequest)
+	// 	http.Error(w, err.Error(), http.StatusNotFound)
+	// 	return
+	// }
+
+	mr, err := extractMetricRequestChi(r, "update")
 	if err != nil {
-		//w.WriteHeader(http.StatusBadRequest)
-		//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
-		//http.Error(w, "Malformed request", http.StatusBadRequest)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
