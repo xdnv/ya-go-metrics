@@ -1,9 +1,8 @@
 package main
 
 import (
-	"crypto/rand"
 	"fmt"
-	"math/big"
+	"math/rand"
 	"net/http"
 	"runtime"
 	"sync"
@@ -58,21 +57,6 @@ func NewMetricStorage() *MetricStorage {
 	return &ms
 }
 
-const floatPrecision = 1000000
-
-func GetRandInt(min, max int) int {
-	nBig, _ := rand.Int(rand.Reader, big.NewInt(int64(max+1-min)))
-	n := nBig.Int64()
-	return int(n) + min
-}
-
-func GetRandFloat(min, max float64) float64 {
-	minInt := int(min * floatPrecision)
-	maxInt := int(max * floatPrecision)
-
-	return float64(GetRandInt(minInt, maxInt)) / floatPrecision
-}
-
 func PostValue(endpoint string, counterType string, counterName string, value string) (*http.Response, error) {
 	// data := []byte(`{"foo":"bar"}`)
 	// r := bytes.NewReader(data)
@@ -100,7 +84,7 @@ func collector(wg *sync.WaitGroup, duration int64, ac AgentConfig) {
 
 		ms.Counter["PollCount"]++
 
-		ms.Gauge["RandomValue"] = GetRandFloat(0.0, 30.0)
+		ms.Gauge["RandomValue"] = rand.Float64()
 
 		// Read full mem stats
 		runtime.ReadMemStats(&rtm)

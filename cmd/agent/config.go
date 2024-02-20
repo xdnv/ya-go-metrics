@@ -1,11 +1,10 @@
-package main
+﻿package main
 
 import (
 	"flag"
 	"os"
 	"strconv"
 )
-
 
 // agent config storage
 type AgentConfig struct {
@@ -25,7 +24,7 @@ func InitAgentConfig() AgentConfig {
 	flag.Parse()
 
 	//parse env variables
-	if val, found := os.LookupEnv("ADDRESS"); found && (val != "") {
+	if val, found := os.LookupEnv("ADDRESS"); found {
 		cf.Endpoint = val
 	}
 	if val, found := os.LookupEnv("REPORT_INTERVAL"); found && (val != "") {
@@ -39,6 +38,10 @@ func InitAgentConfig() AgentConfig {
 		if err == nil {
 			cf.PollInterval = intval
 		}
+	}
+
+	if cf.Endpoint == "" {
+		panic("PANIC: endpoint address:port is not set")
 	}
 
 	// // Access and print non-flag arguments

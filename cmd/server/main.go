@@ -8,10 +8,8 @@ package main
 // - модульность? абстракции? мутексы?
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -54,12 +52,6 @@ func run() error {
 
 	fmt.Printf("using endpoint: %s\n", sc.Endpoint)
 
-	//standard router library
-	// mux := http.NewServeMux()
-	// mux.HandleFunc(`/`, index)
-	// mux.HandleFunc(`/update/`, updateMetric)
-	// mux.HandleFunc(`/value/`, requestMetric)
-
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
 
@@ -69,155 +61,4 @@ func run() error {
 
 	//log.Fatal(http.ListenAndServe(sc.Endpoint, mux))
 	return http.ListenAndServe(sc.Endpoint, mux)
-}
-
-// type appError struct {
-// 	Error   error
-// 	Message string
-// 	Code    int
-// }
-
-func validateMetricRequest(mr MetricRequest) (*MetricRequest, error) {
-
-	//fmt.Printf("TRACE: validate mode[%s] type[%s] name[%s] value[%s]\n", mr.Mode, mr.Type, mr.Name, mr.Value)
-
-	if !slices.Contains([]string{"update", "value"}, mr.Mode) {
-		//return mr, fmt.Errorf("unexpected metric processing mode: %s", mr.Mode)
-		return &mr, fmt.Errorf("unexpected metric processing mode: %s", mr.Mode)
-	}
-
-	if !slices.Contains([]string{"gauge", "counter"}, mr.Type) {
-		//return mr, fmt.Errorf("unexpected metric type: %s", mr.Mode)
-
-		return &mr, fmt.Errorf("unexpected metric type: %s", mr.Mode)
-	}
-
-	if (mr.Mode == "update") && (mr.Value == "") {
-		//return mr, errors.New("non-empty metric Value parameter expected for update request")
-		return &mr, errors.New("non-empty metric Value parameter expected for update request")
-	}
-
-	return &mr, nil
-}
-
-// HTTP request processing
-func requestMetric(w http.ResponseWriter, r *http.Request) {
-
-	// set correct data type
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-
-	mr := new(MetricRequest)
-	mr.Mode = "value"
-	mr.Type = chi.URLParam(r, "type")
-	mr.Name = chi.URLParam(r, "name")
-	mr.Value = ""
-
-	mr, err := validateMetricRequest(*mr)
-	if err != nil {
-		//w.WriteHeader(http.StatusBadRequest)
-		//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
-		//http.Error(w, "Malformed request", http.StatusBadRequest)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	val, ok := storage.Metrics[mr.Name]
-	if !ok {
-		//w.WriteHeader(http.StatusNotFound)
-		http.Error(w, "Metric not found: "+mr.Name, http.StatusNotFound)
-		return
-	}
-
-	body := fmt.Sprintf("%v", val.GetValue())
-	_, _ = w.Write([]byte(body))
-
-	// это пойдёт в тесты
-	// //===========================
-
-	// body := fmt.Sprintf("Method: %s\r\n", r.Method)
-
-	// body += fmt.Sprintf("STORAGE: %s\r\n", storage)
-
-	// body += fmt.Sprintf("URL: %s\r\n", r.URL)
-	// // /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
-	// // /update/ = мы уже здесь благодаря обработчику, удаляем
-	// // <ТИП_МЕТРИКИ> = Gauge | Counter
-	// // <ИМЯ_МЕТРИКИ> = произвольное, пока не изучен пакет "runtime"
-	// // <ЗНАЧЕНИЕ_МЕТРИКИ> = float для Gauge, int для Counter
-
-	// body += "Header ===============\r\n"
-	// for k, v := range r.Header {
-	// 	body += fmt.Sprintf("%s: %v\r\n", k, v)
-	// }
-	// body += "Query parameters ===============\r\n"
-	// for k, v := range r.URL.Query() {
-	// 	body += fmt.Sprintf("%s: %v\r\n", k, v)
-	// }
-	// _, _ = w.Write([]byte(body))
-
-	// // пока установим ответ-заглушку, без проверки ошибок
-	// // _, _ = w.Write([]byte(`
-	// //   {
-	// //     "response": {
-	// //       "text": "Извините, я пока ничего не умею"
-	// //     },
-	// //     "version": "1.0"
-	// //   }
-	// // `))
-
-	//w.WriteHeader(http.StatusOK)
-}
-
-// HTTP request processing
-func updateMetric(w http.ResponseWriter, r *http.Request) {
-
-	// установим правильный заголовок для типа данных
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-
-	mr := new(MetricRequest)
-	mr.Mode = "update"
-	mr.Type = chi.URLParam(r, "type")
-	mr.Name = chi.URLParam(r, "name")
-	mr.Value = chi.URLParam(r, "value")
-
-	mr, err := validateMetricRequest(*mr)
-	if err != nil {
-		//w.WriteHeader(http.StatusBadRequest)
-		//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
-		//http.Error(w, "Malformed request", http.StatusBadRequest)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	switch mr.Type {
-	case "gauge":
-		val, ok := storage.Metrics[mr.Name].(Gauge)
-		if !ok {
-			//создаём новый элемент
-			val = Gauge{}
-		}
-		err := val.UpdateValueS(mr.Value)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		storage.Metrics[mr.Name] = val
-	case "counter":
-		val, ok := storage.Metrics[mr.Name].(Counter)
-		if !ok {
-			//создаём новый элемент
-			val = Counter{}
-		}
-		err := val.UpdateValueS(mr.Value)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		storage.Metrics[mr.Name] = val
-	default:
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	//w.WriteHeader(http.StatusOK)
 }

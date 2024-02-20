@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"flag"
@@ -16,8 +16,12 @@ func InitServerConfig() ServerConfig {
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port endpoint for server to listen")
 	flag.Parse()
 
-	if val, found := os.LookupEnv("ADDRESS"); found && (val != "") {
+	if val, found := os.LookupEnv("ADDRESS"); found {
 		cf.Endpoint = val
+	}
+
+	if cf.Endpoint == "" {
+		panic("PANIC: endpoint address:port is not set")
 	}
 
 	return cf
