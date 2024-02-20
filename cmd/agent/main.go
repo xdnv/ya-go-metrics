@@ -80,14 +80,14 @@ func collector(wg *sync.WaitGroup, duration int64, ac AgentConfig) {
 
 		fmt.Printf("TRACE: collect metrics [%s]\n", time.Now().Format("2006-01-02 15:04:05"))
 
+		// Read full mem stats
+		runtime.ReadMemStats(&rtm)
+
 		ms.Lock()
 
 		ms.Counter["PollCount"]++
 
 		ms.Gauge["RandomValue"] = rand.Float64()
-
-		// Read full mem stats
-		runtime.ReadMemStats(&rtm)
 
 		// Number of goroutines
 		// m.NumGoroutine = runtime.NumGoroutine()
