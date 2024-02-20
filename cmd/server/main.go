@@ -4,23 +4,14 @@ package main
 //можно либо разделить хранение метрик по мапам для каждого типа, либо добавить признак типа метрики в саму метрику и сверять с ней, либо что-то ещё
 // основная часть программы
 //todo:
-// +++ оптимайз функций - вынести повторы в отд функции
-// +++ добавить вывод значения через get
-// +++ записывать все метрики
-// - перевести на HTTP фреймворк
-// - добавить тесты
 // - в агенте разделить время получения данных и время отправки на сервер
 // - модульность? абстракции? мутексы?
 
 import (
-	"cmp"
 	"errors"
 	"fmt"
-	"io"
-
 	"net/http"
 	"slices"
-	"sort"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -79,118 +70,6 @@ func run() error {
 	//err := http.ListenAndServe(`:8080`, mux)
 	//log.Fatal(http.ListenAndServe(sc.Endpoint, mux))
 	return http.ListenAndServe(sc.Endpoint, mux)
-}
-
-func sortedKeys[K cmp.Ordered, V any](m map[K]V) []K {
-	keys := make([]K, len(m))
-	i := 0
-	for k := range m {
-		keys[i] = k
-		i++
-	}
-	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
-	return keys
-}
-
-// const metricsHTML = `
-//  	<h1>{{.PageTitle}}</h1>
-// 	 <style>
-// 	 table, td, th {
-// 	   border: 1px solid black;
-// 	   border-spacing: 0px;
-// 	 }
-// 	 </style>
-//  	<table>
-// 		{{range .Metrics}}
-// 			{{if .Header}}
-// 				<tr><th>Metric</th><th>Value</th></tr>
-// 			{{else}}
-// 				<tr><td>{{.Title}}</td><td style=\"text-align: right;\">{{.Value}}</td></tr>
-// 			{{end}}
-// 		{{end}}
-// 	</table>
-// 	`
-
-// type MetricEntry struct {
-// 	Title  string
-// 	Value  string
-// 	Header bool
-// }
-
-// type MetricPageData struct {
-// 	PageTitle string
-// 	Metrics   []MetricEntry
-// }
-
-// func index_t(w http.ResponseWriter, r *http.Request) {
-
-// 	//check for malformed requests
-// 	if r.URL.Path != "/" {
-// 		http.NotFound(w, r)
-// 		return
-// 	}
-
-// 	// set correct datatype in header
-// 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-// 	w.WriteHeader(http.StatusOK)
-
-// 	data := new(MetricPageData)
-
-// 	data.PageTitle = "Current values"
-// 	data.Metrics = append(data.Metrics, MetricEntry{"Metric", "Value", true})
-
-// 	for _, key := range sortedKeys(storage.Metrics) {
-// 		data.Metrics = append(data.Metrics, MetricEntry{key, fmt.Sprintf("%v", storage.Metrics[key].(Metric).GetValue()), false})
-// 	}
-
-// 	tmpl := template.Must(template.New("").Parse(metricsHTML))
-// 	tmpl.Execute(w, data)
-// }
-
-func index(w http.ResponseWriter, r *http.Request) {
-
-	//check for malformed requests - only exact root path accepted
-	//covered by tests, removal will bring tests to fail
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-
-	// установим правильный заголовок для типа данных
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	const pageTmpl = `<html>
-		<head>
-			<title>%s</title>
-			<style>
-	  		table, td, th {
-	    		border: 1px solid black;
-	    		border-spacing: 0px;
-	  		}
-	  		td, th {
-	    		padding: 5px;
-	  		}
-			</style>
-		</head>
-		<body>
-	    	%s
-		</body>
-		</html>`
-
-	tableOut := "<table>"
-
-	headerTmpl := "<tr><th>%s</th><th>%v</th></tr>"
-	rowTmpl := "<tr><td>%s</td><td style=\"text-align: right;\">%v</td></tr>"
-
-	tableOut += fmt.Sprintf(headerTmpl, "Metric", "Value")
-
-	for _, key := range sortedKeys(storage.Metrics) {
-		tableOut += fmt.Sprintf(rowTmpl, key, storage.Metrics[key].GetValue())
-	}
-	tableOut += "</table>"
-
-	io.WriteString(w, fmt.Sprintf(pageTmpl, "Metrics", tableOut))
 }
 
 // type appError struct {
