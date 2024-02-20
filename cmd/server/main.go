@@ -149,12 +149,6 @@ func sortedKeys[K cmp.Ordered, V any](m map[K]V) []K {
 
 func index(w http.ResponseWriter, r *http.Request) {
 
-	//check for malformed requests
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-
 	// установим правильный заголовок для типа данных
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -272,27 +266,9 @@ func validateMetricRequest(mr MetricRequest) (*MetricRequest, error) {
 // HTTP request processing
 func requestMetric(w http.ResponseWriter, r *http.Request) {
 
-	// разрешаем только GET-запросы
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Доработайте сервер так, чтобы в ответ на запрос GET http://<АДРЕС_СЕРВЕРА>/value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ> он возвращал текущее значение метрики в текстовом виде со статусом http.StatusOK.
-	// При успешном приёме возвращать http.StatusOK.
-	// При попытке запроса неизвестной метрики сервер должен возвращать http.StatusNotFound.
-
 	// установим правильный заголовок для типа данных
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-	// mr, err := extractMetricRequest(r.URL.Path)
-	// if err != nil {
-	// 	//w.WriteHeader(http.StatusBadRequest)
-	// 	//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
-	// 	//http.Error(w, "Malformed request", http.StatusBadRequest)
-	// 	http.Error(w, err.Error(), http.StatusNotFound)
-	// 	return
-	// }
 	mr, err := extractMetricRequestChi(r, "value")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -358,34 +334,8 @@ func requestMetric(w http.ResponseWriter, r *http.Request) {
 // HTTP request processing
 func updateMetric(w http.ResponseWriter, r *http.Request) {
 
-	// разрешаем только POST-запросы
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	// (1.3) Принимать данные в формате http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>, Content-Type: text/plain.
-	// contentType := r.Header.Get("Content-type")
-	// if contentType != "text/plain" {
-	// 	w.WriteHeader(http.StatusUnsupportedMediaType)
-	// 	return
-	// }
-
-	// (1.4) При успешном приёме возвращать http.StatusOK.
-	//При попытке передать запрос без имени метрики возвращать http.StatusNotFound.
-	//При попытке передать запрос с некорректным типом метрики или значением возвращать http.StatusBadRequest.
-
 	// установим правильный заголовок для типа данных
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-
-	// mr, err := extractMetricRequest(r.URL.Path)
-	// if err != nil {
-	// 	//w.WriteHeader(http.StatusBadRequest)
-	// 	//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
-	// 	//http.Error(w, "Malformed request", http.StatusBadRequest)
-	// 	http.Error(w, err.Error(), http.StatusNotFound)
-	// 	return
-	// }
 
 	mr, err := extractMetricRequestChi(r, "update")
 	if err != nil {
