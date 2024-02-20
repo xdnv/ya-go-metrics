@@ -67,7 +67,6 @@ func run() error {
 	mux.Get("/value/{type}/{name}", requestMetric)
 	mux.Post("/update/{type}/{name}/{value}", updateMetric)
 
-	//err := http.ListenAndServe(`:8080`, mux)
 	//log.Fatal(http.ListenAndServe(sc.Endpoint, mux))
 	return http.ListenAndServe(sc.Endpoint, mux)
 }
@@ -77,54 +76,6 @@ func run() error {
 // 	Message string
 // 	Code    int
 // }
-
-// func extractMetricRequest(mURL string) (*MetricRequest, error) {
-
-// 	mr := new(MetricRequest)
-
-// 	//split path structure, extract metric value (if any)
-// 	metricURL, metricValue := path.Split(mURL)
-
-// 	//split configuration URL
-// 	splitFunc := func(c rune) bool {
-// 		return c == '/'
-// 	}
-// 	metricParams := strings.FieldsFunc(metricURL, splitFunc)
-
-// 	// POST http://<АДРЕС_СЕРВЕРА>/update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ> + metricValue == "<ЗНАЧЕНИЕ_МЕТРИКИ>"
-// 	// GET /value/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ> + metricValue == ""
-
-// 	//check for expected query structure
-// 	numParams := len(metricParams)
-// 	if numParams != 3 {
-// 		//return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
-// 		//fmt.Printf("TRACE: the URL parameter quantity is %d while expected 3\n", numParams)
-// 		return mr, fmt.Errorf("the URL parameter quantity is %d while expected 3", numParams)
-// 	}
-
-// 	mr.Mode = metricParams[0]
-// 	mr.Type = metricParams[1]
-// 	mr.Name = metricParams[2]
-// 	mr.Value = metricValue
-
-// 	return mr, nil
-// }
-
-func extractMetricRequestChi(r *http.Request, mode string) (*MetricRequest, error) {
-
-	mr := new(MetricRequest)
-
-	mr.Mode = mode
-	mr.Type = chi.URLParam(r, "type")
-	mr.Name = chi.URLParam(r, "name")
-	mr.Value = ""
-
-	if mr.Mode == "update" {
-		mr.Value = chi.URLParam(r, "value")
-	}
-
-	return mr, nil
-}
 
 func validateMetricRequest(mr MetricRequest) (*MetricRequest, error) {
 
@@ -152,16 +103,16 @@ func validateMetricRequest(mr MetricRequest) (*MetricRequest, error) {
 // HTTP request processing
 func requestMetric(w http.ResponseWriter, r *http.Request) {
 
-	// установим правильный заголовок для типа данных
+	// set correct data type
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-	mr, err := extractMetricRequestChi(r, "value")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
+	mr := new(MetricRequest)
+	mr.Mode = "value"
+	mr.Type = chi.URLParam(r, "type")
+	mr.Name = chi.URLParam(r, "name")
+	mr.Value = ""
 
-	mr, err = validateMetricRequest(*mr)
+	mr, err := validateMetricRequest(*mr)
 	if err != nil {
 		//w.WriteHeader(http.StatusBadRequest)
 		//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
@@ -223,13 +174,13 @@ func updateMetric(w http.ResponseWriter, r *http.Request) {
 	// установим правильный заголовок для типа данных
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-	mr, err := extractMetricRequestChi(r, "update")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
+	mr := new(MetricRequest)
+	mr.Mode = "update"
+	mr.Type = chi.URLParam(r, "type")
+	mr.Name = chi.URLParam(r, "name")
+	mr.Value = chi.URLParam(r, "value")
 
-	mr, err = validateMetricRequest(*mr)
+	mr, err := validateMetricRequest(*mr)
 	if err != nil {
 		//w.WriteHeader(http.StatusBadRequest)
 		//fmt.Printf("TRACE: failed validation exit message [%s], status code [%d]\n", aerr.Error.Error(), aerr.Code)
