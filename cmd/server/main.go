@@ -149,6 +149,13 @@ func sortedKeys[K cmp.Ordered, V any](m map[K]V) []K {
 
 func index(w http.ResponseWriter, r *http.Request) {
 
+	//check for malformed requests - only exact root path accepted
+	//covered by tests, removal will bring tests to fail
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
 	// установим правильный заголовок для типа данных
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
