@@ -46,15 +46,16 @@ import (
 // }
 
 type MetricStorage struct {
+	sync.RWMutex
 	Gauge   map[string]float64
 	Counter map[string]int64
 }
 
-func NewMetricStorage() MetricStorage {
+func NewMetricStorage() *MetricStorage {
 	var ms MetricStorage
 	ms.Gauge = make(map[string]float64)
 	ms.Counter = make(map[string]int64)
-	return ms
+	return &ms
 }
 
 const floatPrecision = 1000000
@@ -72,14 +73,6 @@ func GetRandFloat(min, max float64) float64 {
 	return float64(GetRandInt(minInt, maxInt)) / floatPrecision
 }
 
-// IfThenElse evaluates a condition, if true returns the first parameter otherwise the second
-func IfThenElse(condition bool, a interface{}, b interface{}) interface{} {
-	if condition {
-		return a
-	}
-	return b
-}
-
 func PostValue(endpoint string, counterType string, counterName string, value string) (*http.Response, error) {
 	// data := []byte(`{"foo":"bar"}`)
 	// r := bytes.NewReader(data)
@@ -91,17 +84,23 @@ func PostValue(endpoint string, counterType string, counterName string, value st
 	return resp, nil
 }
 
-func reporter(wg *sync.WaitGroup, duration int64, ac AgentConfig) {
-	m := NewMetricStorage()
+func collector(wg *sync.WaitGroup, duration int64, ac AgentConfig) {
 	var rtm runtime.MemStats
 	var interval = time.Duration(duration) * time.Second
+
+	//execute to exit wait group
+	defer wg.Done()
 
 	for {
 		<-time.After(interval)
 
-		m.Counter["PollCount"]++
+		fmt.Printf("TRACE: collect metrics [%s]\n", time.Now().Format("2006-01-02 15:04:05"))
 
-		m.Gauge["RandomValue"] = GetRandFloat(0.0, 30.0)
+		ms.Lock()
+
+		ms.Counter["PollCount"]++
+
+		ms.Gauge["RandomValue"] = GetRandFloat(0.0, 30.0)
 
 		// Read full mem stats
 		runtime.ReadMemStats(&rtm)
@@ -110,38 +109,54 @@ func reporter(wg *sync.WaitGroup, duration int64, ac AgentConfig) {
 		// m.NumGoroutine = runtime.NumGoroutine()
 
 		// Misc memory stats
-		m.Gauge["Alloc"] = float64(rtm.Alloc)
-		m.Gauge["BuckHashSys"] = float64(rtm.BuckHashSys)
-		m.Gauge["Frees"] = float64(rtm.Frees)
-		m.Gauge["GCCPUFraction"] = float64(rtm.GCCPUFraction)
-		m.Gauge["GCSys"] = float64(rtm.GCSys)
-		m.Gauge["HeapAlloc"] = float64(rtm.HeapAlloc)
-		m.Gauge["HeapIdle"] = float64(rtm.HeapIdle)
-		m.Gauge["HeapInuse"] = float64(rtm.HeapInuse)
-		m.Gauge["HeapObjects"] = float64(rtm.HeapObjects)
-		m.Gauge["HeapReleased"] = float64(rtm.HeapReleased)
-		m.Gauge["HeapSys"] = float64(rtm.HeapSys)
-		m.Gauge["LastGC"] = float64(rtm.LastGC)
-		m.Gauge["Lookups"] = float64(rtm.Lookups)
-		m.Gauge["MCacheInuse"] = float64(rtm.MCacheInuse)
-		m.Gauge["MCacheSys"] = float64(rtm.MCacheSys)
-		m.Gauge["MSpanInuse"] = float64(rtm.MSpanInuse)
-		m.Gauge["MSpanSys"] = float64(rtm.MSpanSys)
-		m.Gauge["Mallocs"] = float64(rtm.Mallocs)
-		m.Gauge["NextGC"] = float64(rtm.NextGC)
-		m.Gauge["NumForcedGC"] = float64(rtm.NumForcedGC)
-		m.Gauge["NumGC"] = float64(rtm.NumGC) // GC Stats
-		m.Gauge["OtherSys"] = float64(rtm.OtherSys)
-		m.Gauge["PauseTotalNs"] = float64(rtm.PauseTotalNs) // GC Stats
-		m.Gauge["StackInuse"] = float64(rtm.StackInuse)
-		m.Gauge["StackSys"] = float64(rtm.StackSys)
-		m.Gauge["Sys"] = float64(rtm.Sys)
-		m.Gauge["TotalAlloc"] = float64(rtm.TotalAlloc)
+		ms.Gauge["Alloc"] = float64(rtm.Alloc)
+		ms.Gauge["BuckHashSys"] = float64(rtm.BuckHashSys)
+		ms.Gauge["Frees"] = float64(rtm.Frees)
+		ms.Gauge["GCCPUFraction"] = float64(rtm.GCCPUFraction)
+		ms.Gauge["GCSys"] = float64(rtm.GCSys)
+		ms.Gauge["HeapAlloc"] = float64(rtm.HeapAlloc)
+		ms.Gauge["HeapIdle"] = float64(rtm.HeapIdle)
+		ms.Gauge["HeapInuse"] = float64(rtm.HeapInuse)
+		ms.Gauge["HeapObjects"] = float64(rtm.HeapObjects)
+		ms.Gauge["HeapReleased"] = float64(rtm.HeapReleased)
+		ms.Gauge["HeapSys"] = float64(rtm.HeapSys)
+		ms.Gauge["LastGC"] = float64(rtm.LastGC)
+		ms.Gauge["Lookups"] = float64(rtm.Lookups)
+		ms.Gauge["MCacheInuse"] = float64(rtm.MCacheInuse)
+		ms.Gauge["MCacheSys"] = float64(rtm.MCacheSys)
+		ms.Gauge["MSpanInuse"] = float64(rtm.MSpanInuse)
+		ms.Gauge["MSpanSys"] = float64(rtm.MSpanSys)
+		ms.Gauge["Mallocs"] = float64(rtm.Mallocs)
+		ms.Gauge["NextGC"] = float64(rtm.NextGC)
+		ms.Gauge["NumForcedGC"] = float64(rtm.NumForcedGC)
+		ms.Gauge["NumGC"] = float64(rtm.NumGC) // GC Stats
+		ms.Gauge["OtherSys"] = float64(rtm.OtherSys)
+		ms.Gauge["PauseTotalNs"] = float64(rtm.PauseTotalNs) // GC Stats
+		ms.Gauge["StackInuse"] = float64(rtm.StackInuse)
+		ms.Gauge["StackSys"] = float64(rtm.StackSys)
+		ms.Gauge["Sys"] = float64(rtm.Sys)
+		ms.Gauge["TotalAlloc"] = float64(rtm.TotalAlloc)
 
 		// Live objects = Mallocs - Frees
-		// m.LiveObjects = m.Mallocs - m.Frees
+		// ms.LiveObjects = m.Mallocs - m.Frees
 
-		sendPayload(ac.Endpoint, m)
+		ms.Unlock()
+	}
+
+}
+
+func reporter(wg *sync.WaitGroup, duration int64, ac AgentConfig) {
+	var interval = time.Duration(duration) * time.Second
+
+	//execute to exit wait group
+	defer wg.Done()
+
+	for {
+		<-time.After(interval)
+
+		fmt.Printf("TRACE: send metrics [%s]\n", time.Now().Format("2006-01-02 15:04:05"))
+
+		sendPayload(ac.Endpoint, ms)
 
 		// metricName := "PollCount"
 		// resp, err := PostValue(ac.Endpoint, "counter", metricName, fmt.Sprint(m.PollCount))
@@ -158,11 +173,12 @@ func reporter(wg *sync.WaitGroup, duration int64, ac AgentConfig) {
 		// fmt.Println(string(b))
 	}
 
-	//execute to exit wait group
-	//defer wg.Done()
 }
 
-func sendPayload(endpoint string, m MetricStorage) {
+func sendPayload(endpoint string, m *MetricStorage) {
+
+	m.RLock()
+	defer m.RUnlock()
 
 	for k, v := range m.Gauge {
 		sendMetric(endpoint, "gauge", k, fmt.Sprint(v))
@@ -190,6 +206,9 @@ func sendMetric(endpoint string, metricType string, metricName string, metricVal
 
 }
 
+// global metric storage
+var ms = NewMetricStorage()
+
 func main() {
 	ac := InitAgentConfig()
 	fmt.Printf("using endpoint: %s\n", ac.Endpoint)
@@ -198,7 +217,7 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	//go poller(&wg, ac.PollInterval, ac)
+	go collector(&wg, ac.PollInterval, ac)
 	go reporter(&wg, ac.ReportInterval, ac)
 	wg.Wait()
 
