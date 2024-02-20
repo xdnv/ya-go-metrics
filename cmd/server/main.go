@@ -49,8 +49,8 @@ func main() {
 	storage.Metrics["Type1G"] = g // append
 	storage.Metrics["Type2C"] = c // append
 
-	fmt.Printf("Gauge Metric: %v\n", GetMetricValue(storage.Metrics["Type1G"].(Metric)))
-	fmt.Printf("Counter Metric: %v\n", GetMetricValue(storage.Metrics["Type2C"].(Metric)))
+	fmt.Printf("Gauge Metric: %v\n", GetMetricValue(storage.Metrics["Type1G"]))
+	fmt.Printf("Counter Metric: %v\n", GetMetricValue(storage.Metrics["Type2C"]))
 
 	if err := run(); err != nil {
 		panic(err)
@@ -185,7 +185,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 	tableOut += fmt.Sprintf(headerTmpl, "Metric", "Value")
 
 	for _, key := range sortedKeys(storage.Metrics) {
-		tableOut += fmt.Sprintf(rowTmpl, key, storage.Metrics[key].(Metric).GetValue())
+		tableOut += fmt.Sprintf(rowTmpl, key, storage.Metrics[key].GetValue())
 	}
 	tableOut += "</table>"
 
@@ -315,7 +315,7 @@ func requestMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body := fmt.Sprintf("%v", val.(Metric).GetValue())
+	body := fmt.Sprintf("%v", val.GetValue())
 	_, _ = w.Write([]byte(body))
 
 	// это пойдёт в тесты

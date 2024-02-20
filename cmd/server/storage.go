@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"strconv"
@@ -6,7 +6,7 @@ import (
 )
 
 // metric structure
-type MetricMap map[string]interface{}
+type MetricMap map[string]Metric
 
 type Metric interface {
 	GetValue() interface{}
