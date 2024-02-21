@@ -10,7 +10,7 @@ import (
 // HTTP update processing
 func updateMetric(w http.ResponseWriter, r *http.Request) {
 
-	// установим правильный заголовок для типа данных
+	// set correct data type
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 	mr := new(MetricRequest)
@@ -23,7 +23,7 @@ func updateMetric(w http.ResponseWriter, r *http.Request) {
 	case "gauge":
 		val, ok := storage.Metrics[mr.Name].(Gauge)
 		if !ok {
-			//создаём новый элемент
+			//create new item if not exists
 			val = Gauge{}
 		}
 		err := val.UpdateValueS(mr.Value)
@@ -35,7 +35,7 @@ func updateMetric(w http.ResponseWriter, r *http.Request) {
 	case "counter":
 		val, ok := storage.Metrics[mr.Name].(Counter)
 		if !ok {
-			//создаём новый элемент
+			//create new item if not exists
 			val = Counter{}
 		}
 		err := val.UpdateValueS(mr.Value)

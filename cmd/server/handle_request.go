@@ -42,16 +42,8 @@ func requestMetric(w http.ResponseWriter, r *http.Request) {
 	// //===========================
 
 	// body := fmt.Sprintf("Method: %s\r\n", r.Method)
-
 	// body += fmt.Sprintf("STORAGE: %s\r\n", storage)
-
 	// body += fmt.Sprintf("URL: %s\r\n", r.URL)
-	// // /update/<ТИП_МЕТРИКИ>/<ИМЯ_МЕТРИКИ>/<ЗНАЧЕНИЕ_МЕТРИКИ>
-	// // /update/ = мы уже здесь благодаря обработчику, удаляем
-	// // <ТИП_МЕТРИКИ> = Gauge | Counter
-	// // <ИМЯ_МЕТРИКИ> = произвольное, пока не изучен пакет "runtime"
-	// // <ЗНАЧЕНИЕ_МЕТРИКИ> = float для Gauge, int для Counter
-
 	// body += "Header ===============\r\n"
 	// for k, v := range r.Header {
 	// 	body += fmt.Sprintf("%s: %v\r\n", k, v)
@@ -61,16 +53,6 @@ func requestMetric(w http.ResponseWriter, r *http.Request) {
 	// 	body += fmt.Sprintf("%s: %v\r\n", k, v)
 	// }
 	// _, _ = w.Write([]byte(body))
-
-	// // пока установим ответ-заглушку, без проверки ошибок
-	// // _, _ = w.Write([]byte(`
-	// //   {
-	// //     "response": {
-	// //       "text": "Извините, я пока ничего не умею"
-	// //     },
-	// //     "version": "1.0"
-	// //   }
-	// // `))
 
 	//w.WriteHeader(http.StatusOK)
 }

@@ -87,7 +87,7 @@ const indexTableRowTpl = "<tr><td>%s</td><td style=\"text-align: right;\">%v</td
 func index(w http.ResponseWriter, r *http.Request) {
 
 	//check for malformed requests - only exact root path accepted
-	//covered by tests, removal will bring tests to fail
+	//Important: covered by tests, removal will bring tests to fail
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return

@@ -75,7 +75,7 @@ func (t *Counter) UpdateValueS(metricValueS string) error {
 }
 
 // init metric storage
-func InitStorage() MemStorage {
+func NewMemStorage() MemStorage {
 	return MemStorage{
 		Metrics: make(MetricMap),
 	}
