@@ -36,7 +36,6 @@ func requestMetric(w http.ResponseWriter, r *http.Request) {
 	body := fmt.Sprintf("%v", val.GetValue())
 	_, _ = w.Write([]byte(body))
 
-	// это пойдёт в тесты
 	// //===========================
 
 	// body := fmt.Sprintf("Method: %s\r\n", r.Method)

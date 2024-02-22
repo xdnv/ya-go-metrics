@@ -19,10 +19,10 @@ func updateMetric(w http.ResponseWriter, r *http.Request) {
 
 	switch mr.Type {
 	case "gauge":
-		val, ok := storage.Metrics[mr.Name].(Gauge)
+		val, ok := storage.Metrics[mr.Name].(*Gauge)
 		if !ok {
 			//create new item if not exists
-			val = Gauge{}
+			val = &Gauge{}
 		}
 		err := val.UpdateValueS(mr.Value)
 		if err != nil {
@@ -31,10 +31,10 @@ func updateMetric(w http.ResponseWriter, r *http.Request) {
 		}
 		storage.Metrics[mr.Name] = val
 	case "counter":
-		val, ok := storage.Metrics[mr.Name].(Counter)
+		val, ok := storage.Metrics[mr.Name].(*Counter)
 		if !ok {
 			//create new item if not exists
-			val = Counter{}
+			val = &Counter{}
 		}
 		err := val.UpdateValueS(mr.Value)
 		if err != nil {

@@ -10,7 +10,7 @@ type MetricMap map[string]Metric
 
 type Metric interface {
 	GetValue() interface{}
-	//UpdateValue(interface{}) interface{}
+	UpdateValue(interface{})
 	//UpdateValueS(string) error
 }
 
@@ -33,9 +33,9 @@ func (t Gauge) GetValue() interface{} {
 	return t.Value
 }
 
-func (t *Gauge) UpdateValue(metricValue float64) {
+func (t *Gauge) UpdateValue(metricValue interface{}) {
 	//REPLACE value
-	t.Value = metricValue
+	t.Value = metricValue.(float64)
 }
 
 func (t *Gauge) UpdateValueS(metricValueS string) error {
@@ -58,9 +58,9 @@ func (t Counter) GetValue() interface{} {
 	return t.Value
 }
 
-func (t *Counter) UpdateValue(metricValue int64) {
+func (t *Counter) UpdateValue(metricValue interface{}) {
 	//INCREMENT value
-	t.Value += metricValue
+	t.Value += metricValue.(int64)
 }
 
 func (t *Counter) UpdateValueS(metricValueS string) error {

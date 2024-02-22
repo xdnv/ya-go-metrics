@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -22,23 +23,9 @@ type MetricRequest struct {
 var storage = NewMemStorage()
 
 func main() {
-	// это пойдёт в тесты
-	g := Gauge{Value: 0.0} //new(Gauge)
-	g.UpdateValue(0.011)
-	g.UpdateValue(0.012)
-
-	c := Counter{Value: 0} //new(Counter)
-	c.UpdateValue(50)
-	c.UpdateValue(60)
-
-	storage.Metrics["Type1G"] = g // append
-	storage.Metrics["Type2C"] = c // append
-
-	fmt.Printf("Gauge Metric: %v\n", GetMetricValue(storage.Metrics["Type1G"]))
-	fmt.Printf("Counter Metric: %v\n", GetMetricValue(storage.Metrics["Type2C"]))
-
 	if err := run(); err != nil {
-		panic(err)
+		// panic(err)
+		log.Fatal(err)
 	}
 }
 
