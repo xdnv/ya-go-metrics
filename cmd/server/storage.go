@@ -11,7 +11,7 @@ type MetricMap map[string]Metric
 type Metric interface {
 	GetValue() interface{}
 	UpdateValue(interface{})
-	//UpdateValueS(string) error
+	UpdateValueS(string) error
 }
 
 func GetMetricValue(t Metric) interface{} {
