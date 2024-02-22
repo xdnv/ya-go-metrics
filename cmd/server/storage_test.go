@@ -8,21 +8,6 @@ import (
 )
 
 func TestNewMemStorage(t *testing.T) {
-	// // это пойдёт в тесты
-	// g := Gauge{Value: 0.0} //new(Gauge)
-	// g.UpdateValue(0.011)
-	// g.UpdateValue(0.012)
-
-	// c := Counter{Value: 0} //new(Counter)
-	// c.UpdateValue(50)
-	// c.UpdateValue(60)
-
-	// storage.Metrics["Type1G"] = g // append
-	// storage.Metrics["Type2C"] = c // append
-
-	// fmt.Printf("Gauge Metric: %v\n", GetMetricValue(storage.Metrics["Type1G"]))
-	// fmt.Printf("Counter Metric: %v\n", GetMetricValue(storage.Metrics["Type2C"]))
-
 	type want struct {
 		Value interface{}
 	}
@@ -63,18 +48,18 @@ func TestNewMemStorage(t *testing.T) {
 
 			switch tt.metricType {
 			case "gauge":
-				tm = &Gauge{Value: tt.initialValue.(float64)} //new(Gauge)
+				tm = &Gauge{Value: tt.initialValue.(float64)}
 			case "counter":
-				tm = &Counter{Value: tt.initialValue.(int64)} //new(Counter)
+				tm = &Counter{Value: tt.initialValue.(int64)}
 			default:
-				assert.True(t, true, fmt.Sprintf("Unsupported metric type: %s", tt.metricType)) //throw error
+				assert.True(t, true, fmt.Sprintf("Unsupported metric type: %s", tt.metricType))
 			}
 
 			for _, v := range tt.updateSequence {
 				tm.UpdateValue(v)
 			}
 
-			testStorage.Metrics[tt.metricName] = tm // append
+			testStorage.Metrics[tt.metricName] = tm
 
 			assert.Equal(t, tt.want.Value, GetMetricValue(testStorage.Metrics[tt.metricName]))
 		})

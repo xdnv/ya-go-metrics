@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"strconv"
-	//"sync"
 )
 
 // metric structure
@@ -22,7 +21,6 @@ func GetMetricValue(t Metric) interface{} {
 
 // main metric storage
 type MemStorage struct {
-	//mu      sync.Mutex //TODO: https://go.dev/tour/concurrency/9
 	Metrics MetricMap
 }
 
@@ -79,8 +77,8 @@ func (t *Gauge) UpdateValueS(metricValueS string) error {
 		return err
 	}
 
-	t.Value = val
-	//t.UpdateValue(val)
+	t.UpdateValue(val)
+
 	return nil
 }
 
@@ -108,8 +106,8 @@ func (t *Counter) UpdateValueS(metricValueS string) error {
 		return err
 	}
 
-	t.Value += val
-	//t.UpdateValue(val)
+	t.UpdateValue(val)
+
 	return nil
 }
 

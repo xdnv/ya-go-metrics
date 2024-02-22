@@ -9,41 +9,6 @@ import (
 	"time"
 )
 
-// type GaugeValues struct {
-// 	Alloc,
-// 	BuckHashSys,
-// 	Frees,
-// 	GCCPUFraction,
-// 	GCSys,
-// 	HeapAlloc,
-// 	HeapIdle,
-// 	HeapInuse,
-// 	HeapObjects,
-// 	HeapReleased,
-// 	HeapSys,
-// 	LastGC,
-// 	Lookups,
-// 	MCacheInuse,
-// 	MCacheSys,
-// 	MSpanInuse,
-// 	MSpanSys,
-// 	Mallocs,
-// 	NextGC,
-// 	NumForcedGC,
-// 	NumGC,
-// 	OtherSys,
-// 	PauseTotalNs,
-// 	StackInuse,
-// 	StackSys,
-// 	Sys,
-// 	TotalAlloc,
-// 	RandomValue float64 //(тип gauge) — обновляемое произвольное значение.
-// }
-
-// type CounterValues struct {
-// 	PollCount int64 //(тип counter) — счётчик, увеличивающийся на 1 при каждом обновлении метрики из пакета runtime (на каждый pollInterval — см. ниже).
-// }
-
 type MetricStorage struct {
 	sync.RWMutex
 	Gauges   map[string]float64
@@ -58,8 +23,6 @@ func NewMetricStorage() *MetricStorage {
 }
 
 func PostValue(endpoint string, counterType string, counterName string, value string) (*http.Response, error) {
-	// data := []byte(`{"foo":"bar"}`)
-	// r := bytes.NewReader(data)
 	address := fmt.Sprintf("http://%s/update/%s/%s/%s", endpoint, counterType, counterName, value)
 	resp, err := http.Post(address, "text/plain", nil)
 	if err != nil {
@@ -140,20 +103,6 @@ func reporter(wg *sync.WaitGroup, duration int64, ac AgentConfig) {
 		fmt.Printf("TRACE: send metrics [%s]\n", time.Now().Format("2006-01-02 15:04:05"))
 
 		sendPayload(ac.Endpoint, ms)
-
-		// metricName := "PollCount"
-		// resp, err := PostValue(ac.Endpoint, "counter", metricName, fmt.Sprint(m.PollCount))
-		// if err != nil {
-		// 	fmt.Printf("ERROR posting value: %s, %s", metricName, err)
-		// }
-		// fmt.Println("response Status:", resp.Status)
-		// fmt.Println("response Headers:", resp.Header)
-		// body, _ := ioutil.ReadAll(resp.Body)
-		// fmt.Println("response Body:", string(body))
-
-		// // Just encode to json and print
-		// b, _ := json.Marshal(m)
-		// fmt.Println(string(b))
 	}
 }
 
@@ -172,7 +121,6 @@ func sendPayload(endpoint string, m *MetricStorage) {
 
 func sendMetric(endpoint string, metricType string, metricName string, metricValue string) {
 	resp, err := PostValue(endpoint, metricType, metricName, metricValue)
-	//_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 
 	if err != nil {

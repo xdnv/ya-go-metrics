@@ -7,61 +7,6 @@ import (
 	"net/http"
 )
 
-// const metricsHTML = `
-//  	<h1>{{.PageTitle}}</h1>
-// 	 <style>
-// 	 table, td, th {
-// 	   border: 1px solid black;
-// 	   border-spacing: 0px;
-// 	 }
-// 	 </style>
-//  	<table>
-// 		{{range .Metrics}}
-// 			{{if .Header}}
-// 				<tr><th>Metric</th><th>Value</th></tr>
-// 			{{else}}
-// 				<tr><td>{{.Title}}</td><td style=\"text-align: right;\">{{.Value}}</td></tr>
-// 			{{end}}
-// 		{{end}}
-// 	</table>
-// 	`
-
-// type MetricEntry struct {
-// 	Title  string
-// 	Value  string
-// 	Header bool
-// }
-
-// type MetricPageData struct {
-// 	PageTitle string
-// 	Metrics   []MetricEntry
-// }
-
-// func index_t(w http.ResponseWriter, r *http.Request) {
-
-// 	//check for malformed requests
-// 	if r.URL.Path != "/" {
-// 		http.NotFound(w, r)
-// 		return
-// 	}
-
-// 	// set correct datatype in header
-// 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-// 	w.WriteHeader(http.StatusOK)
-
-// 	data := new(MetricPageData)
-
-// 	data.PageTitle = "Current values"
-// 	data.Metrics = append(data.Metrics, MetricEntry{"Metric", "Value", true})
-
-// 	for _, key := range sortedKeys(storage.Metrics) {
-// 		data.Metrics = append(data.Metrics, MetricEntry{key, fmt.Sprintf("%v", storage.Metrics[key].(Metric).GetValue()), false})
-// 	}
-
-// 	tmpl := template.Must(template.New("").Parse(metricsHTML))
-// 	tmpl.Execute(w, data)
-// }
-
 const indexPageTpl = `<html>
 	<head>
 		<title>%s</title>

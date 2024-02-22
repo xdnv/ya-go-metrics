@@ -1,9 +1,5 @@
 package main
 
-//TODO: Сейчас адлгоритм позволяет указывать одно имя метрики для разных типов, в этом случае может происходить замена типа метрики и непредсказуемое поведение значения
-//можно либо разделить хранение метрик по мапам для каждого типа, либо добавить признак типа метрики в саму метрику и сверять с ней, либо что-то ещё
-// основная часть программы
-
 import (
 	"fmt"
 	"log"
@@ -14,7 +10,6 @@ import (
 )
 
 type MetricRequest struct {
-	//Mode  string
 	Type  string
 	Name  string
 	Value string
@@ -24,12 +19,10 @@ var storage = NewMemStorage()
 
 func main() {
 	if err := run(); err != nil {
-		// panic(err)
 		log.Fatal(err)
 	}
 }
 
-// init dependencies
 func run() error {
 	sc := InitServerConfig()
 
@@ -42,6 +35,5 @@ func run() error {
 	mux.Get("/value/{type}/{name}", requestMetric)
 	mux.Post("/update/{type}/{name}/{value}", updateMetric)
 
-	//log.Fatal(http.ListenAndServe(sc.Endpoint, mux))
 	return http.ListenAndServe(sc.Endpoint, mux)
 }

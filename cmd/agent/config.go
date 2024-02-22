@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"flag"
@@ -50,10 +50,6 @@ func InitAgentConfig() AgentConfig {
 	if cf.ReportInterval == 0 {
 		panic("PANIC: report interval is not set")
 	}
-
-	// // Access and print non-flag arguments
-	// args := flag.Args()
-	// fmt.Println("Non-flag arguments:", args)
 
 	return cf
 }
