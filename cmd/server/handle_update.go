@@ -9,8 +9,6 @@ import (
 
 // HTTP update processing
 func updateMetric(w http.ResponseWriter, r *http.Request) {
-
-	// set correct data type
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 	mr := new(MetricRequest)

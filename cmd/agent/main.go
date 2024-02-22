@@ -46,14 +46,14 @@ import (
 
 type MetricStorage struct {
 	sync.RWMutex
-	Gauge   map[string]float64
-	Counter map[string]int64
+	Gauges   map[string]float64
+	Counters map[string]int64
 }
 
 func NewMetricStorage() *MetricStorage {
 	var ms MetricStorage
-	ms.Gauge = make(map[string]float64)
-	ms.Counter = make(map[string]int64)
+	ms.Gauges = make(map[string]float64)
+	ms.Counters = make(map[string]int64)
 	return &ms
 }
 
@@ -85,48 +85,47 @@ func collector(wg *sync.WaitGroup, duration int64, ac AgentConfig) {
 
 		ms.Lock()
 
-		ms.Counter["PollCount"]++
+		ms.Counters["PollCount"]++
 
-		ms.Gauge["RandomValue"] = rand.Float64()
+		ms.Gauges["RandomValue"] = rand.Float64()
 
 		// Number of goroutines
 		// m.NumGoroutine = runtime.NumGoroutine()
 
 		// Misc memory stats
-		ms.Gauge["Alloc"] = float64(rtm.Alloc)
-		ms.Gauge["BuckHashSys"] = float64(rtm.BuckHashSys)
-		ms.Gauge["Frees"] = float64(rtm.Frees)
-		ms.Gauge["GCCPUFraction"] = float64(rtm.GCCPUFraction)
-		ms.Gauge["GCSys"] = float64(rtm.GCSys)
-		ms.Gauge["HeapAlloc"] = float64(rtm.HeapAlloc)
-		ms.Gauge["HeapIdle"] = float64(rtm.HeapIdle)
-		ms.Gauge["HeapInuse"] = float64(rtm.HeapInuse)
-		ms.Gauge["HeapObjects"] = float64(rtm.HeapObjects)
-		ms.Gauge["HeapReleased"] = float64(rtm.HeapReleased)
-		ms.Gauge["HeapSys"] = float64(rtm.HeapSys)
-		ms.Gauge["LastGC"] = float64(rtm.LastGC)
-		ms.Gauge["Lookups"] = float64(rtm.Lookups)
-		ms.Gauge["MCacheInuse"] = float64(rtm.MCacheInuse)
-		ms.Gauge["MCacheSys"] = float64(rtm.MCacheSys)
-		ms.Gauge["MSpanInuse"] = float64(rtm.MSpanInuse)
-		ms.Gauge["MSpanSys"] = float64(rtm.MSpanSys)
-		ms.Gauge["Mallocs"] = float64(rtm.Mallocs)
-		ms.Gauge["NextGC"] = float64(rtm.NextGC)
-		ms.Gauge["NumForcedGC"] = float64(rtm.NumForcedGC)
-		ms.Gauge["NumGC"] = float64(rtm.NumGC) // GC Stats
-		ms.Gauge["OtherSys"] = float64(rtm.OtherSys)
-		ms.Gauge["PauseTotalNs"] = float64(rtm.PauseTotalNs) // GC Stats
-		ms.Gauge["StackInuse"] = float64(rtm.StackInuse)
-		ms.Gauge["StackSys"] = float64(rtm.StackSys)
-		ms.Gauge["Sys"] = float64(rtm.Sys)
-		ms.Gauge["TotalAlloc"] = float64(rtm.TotalAlloc)
+		ms.Gauges["Alloc"] = float64(rtm.Alloc)
+		ms.Gauges["BuckHashSys"] = float64(rtm.BuckHashSys)
+		ms.Gauges["Frees"] = float64(rtm.Frees)
+		ms.Gauges["GCCPUFraction"] = float64(rtm.GCCPUFraction)
+		ms.Gauges["GCSys"] = float64(rtm.GCSys)
+		ms.Gauges["HeapAlloc"] = float64(rtm.HeapAlloc)
+		ms.Gauges["HeapIdle"] = float64(rtm.HeapIdle)
+		ms.Gauges["HeapInuse"] = float64(rtm.HeapInuse)
+		ms.Gauges["HeapObjects"] = float64(rtm.HeapObjects)
+		ms.Gauges["HeapReleased"] = float64(rtm.HeapReleased)
+		ms.Gauges["HeapSys"] = float64(rtm.HeapSys)
+		ms.Gauges["LastGC"] = float64(rtm.LastGC)
+		ms.Gauges["Lookups"] = float64(rtm.Lookups)
+		ms.Gauges["MCacheInuse"] = float64(rtm.MCacheInuse)
+		ms.Gauges["MCacheSys"] = float64(rtm.MCacheSys)
+		ms.Gauges["MSpanInuse"] = float64(rtm.MSpanInuse)
+		ms.Gauges["MSpanSys"] = float64(rtm.MSpanSys)
+		ms.Gauges["Mallocs"] = float64(rtm.Mallocs)
+		ms.Gauges["NextGC"] = float64(rtm.NextGC)
+		ms.Gauges["NumForcedGC"] = float64(rtm.NumForcedGC)
+		ms.Gauges["NumGC"] = float64(rtm.NumGC) // GC Stats
+		ms.Gauges["OtherSys"] = float64(rtm.OtherSys)
+		ms.Gauges["PauseTotalNs"] = float64(rtm.PauseTotalNs) // GC Stats
+		ms.Gauges["StackInuse"] = float64(rtm.StackInuse)
+		ms.Gauges["StackSys"] = float64(rtm.StackSys)
+		ms.Gauges["Sys"] = float64(rtm.Sys)
+		ms.Gauges["TotalAlloc"] = float64(rtm.TotalAlloc)
 
 		// Live objects = Mallocs - Frees
 		// ms.LiveObjects = m.Mallocs - m.Frees
 
 		ms.Unlock()
 	}
-
 }
 
 func reporter(wg *sync.WaitGroup, duration int64, ac AgentConfig) {
@@ -156,26 +155,22 @@ func reporter(wg *sync.WaitGroup, duration int64, ac AgentConfig) {
 		// b, _ := json.Marshal(m)
 		// fmt.Println(string(b))
 	}
-
 }
 
 func sendPayload(endpoint string, m *MetricStorage) {
-
 	m.RLock()
 	defer m.RUnlock()
 
-	for k, v := range m.Gauge {
+	for k, v := range m.Gauges {
 		sendMetric(endpoint, "gauge", k, fmt.Sprint(v))
 	}
 
-	for k, v := range m.Counter {
+	for k, v := range m.Counters {
 		sendMetric(endpoint, "counter", k, fmt.Sprint(v))
 	}
-
 }
 
 func sendMetric(endpoint string, metricType string, metricName string, metricValue string) {
-
 	resp, err := PostValue(endpoint, metricType, metricName, fmt.Sprint(metricValue))
 	//_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
@@ -187,7 +182,6 @@ func sendMetric(endpoint string, metricType string, metricName string, metricVal
 		fmt.Println("response Status:", resp.Status)
 		fmt.Println("response Headers:", resp.Header)
 	}
-
 }
 
 // global metric storage
@@ -200,9 +194,8 @@ func main() {
 	fmt.Printf("report interval: %d\n", ac.ReportInterval)
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(2)
 	go collector(&wg, ac.PollInterval, ac)
 	go reporter(&wg, ac.ReportInterval, ac)
 	wg.Wait()
-
 }

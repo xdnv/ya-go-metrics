@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"flag"
@@ -14,7 +14,6 @@ type AgentConfig struct {
 }
 
 func InitAgentConfig() AgentConfig {
-
 	cf := AgentConfig{}
 
 	//set defaults and read command line

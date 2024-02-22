@@ -22,7 +22,6 @@ type MetricRequest struct {
 var storage = NewMemStorage()
 
 func main() {
-
 	// это пойдёт в тесты
 	g := Gauge{Value: 0.0} //new(Gauge)
 	g.UpdateValue(0.011)
