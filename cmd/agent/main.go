@@ -171,7 +171,7 @@ func sendPayload(endpoint string, m *MetricStorage) {
 }
 
 func sendMetric(endpoint string, metricType string, metricName string, metricValue string) {
-	resp, err := PostValue(endpoint, metricType, metricName, fmt.Sprint(metricValue))
+	resp, err := PostValue(endpoint, metricType, metricName, metricValue)
 	//_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 
