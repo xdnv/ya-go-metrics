@@ -111,15 +111,19 @@ func sendPayload(endpoint string, m *MetricStorage) {
 	defer m.RUnlock()
 
 	for k, v := range m.Gauges {
-		sendMetric(endpoint, "gauge", k, fmt.Sprint(v))
+		_, _ = sendMetric(endpoint, "gauge", k, fmt.Sprint(v))
 	}
 
 	for k, v := range m.Counters {
-		sendMetric(endpoint, "counter", k, fmt.Sprint(v))
+		_, err := sendMetric(endpoint, "counter", k, fmt.Sprint(v))
+		//reset counter after successful transefer
+		if err == nil {
+			m.Counters[k] = 0
+		}
 	}
 }
 
-func sendMetric(endpoint string, metricType string, metricName string, metricValue string) {
+func sendMetric(endpoint string, metricType string, metricName string, metricValue string) (*http.Response, error) {
 	resp, err := PostValue(endpoint, metricType, metricName, metricValue)
 	resp.Body.Close()
 
@@ -130,6 +134,7 @@ func sendMetric(endpoint string, metricType string, metricName string, metricVal
 		fmt.Println("response Status:", resp.Status)
 		fmt.Println("response Headers:", resp.Header)
 	}
+	return resp, err
 }
 
 // global metric storage
