@@ -111,11 +111,13 @@ func sendPayload(endpoint string, m *MetricStorage) {
 	defer m.RUnlock()
 
 	for k, v := range m.Gauges {
-		_, _ = sendMetric(endpoint, "gauge", k, fmt.Sprint(v))
+		resp, _ := sendMetric(endpoint, "gauge", k, fmt.Sprint(v))
+		resp.Body.Close()
 	}
 
 	for k, v := range m.Counters {
-		_, err := sendMetric(endpoint, "counter", k, fmt.Sprint(v))
+		resp, err := sendMetric(endpoint, "counter", k, fmt.Sprint(v))
+		resp.Body.Close()
 		//reset counter after successful transefer
 		if err == nil {
 			m.Counters[k] = 0
@@ -125,7 +127,6 @@ func sendPayload(endpoint string, m *MetricStorage) {
 
 func sendMetric(endpoint string, metricType string, metricName string, metricValue string) (*http.Response, error) {
 	resp, err := PostValue(endpoint, metricType, metricName, metricValue)
-	resp.Body.Close()
 
 	if err != nil {
 		fmt.Printf("ERROR posting value: %s, %s", metricName, err)
