@@ -11,7 +11,7 @@ func updateMetric(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 	mr := new(MetricRequest)
-	mr.Mode = "update"
+	// mr.Mode = "update"
 	mr.Type = chi.URLParam(r, "type")
 	mr.Name = chi.URLParam(r, "name")
 	mr.Value = chi.URLParam(r, "value")

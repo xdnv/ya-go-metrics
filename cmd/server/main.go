@@ -14,7 +14,7 @@ import (
 )
 
 type MetricRequest struct {
-	Mode  string
+	//Mode  string
 	Type  string
 	Name  string
 	Value string

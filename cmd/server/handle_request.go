@@ -12,7 +12,7 @@ func requestMetric(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 	mr := new(MetricRequest)
-	mr.Mode = "value"
+	//mr.Mode = "value"
 	mr.Type = chi.URLParam(r, "type")
 	mr.Name = chi.URLParam(r, "name")
 
@@ -21,7 +21,7 @@ func requestMetric(w http.ResponseWriter, r *http.Request) {
 	case "gauge":
 	case "counter":
 	default:
-		http.Error(w, fmt.Sprintf("unexpected metric type: %s", mr.Mode), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unexpected metric type: %s", mr.Type), http.StatusBadRequest)
 		return
 	}
 
