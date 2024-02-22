@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 	//"sync"
 )
@@ -9,6 +10,7 @@ import (
 type MetricMap map[string]Metric
 
 type Metric interface {
+	GetType() string
 	GetValue() interface{}
 	UpdateValue(interface{})
 	UpdateValueS(string) error
@@ -24,9 +26,42 @@ type MemStorage struct {
 	Metrics MetricMap
 }
 
+func (t MemStorage) UpdateMetricS(mType string, mName string, mValue string) error {
+	var val Metric
+	var ok bool
+
+	switch mType {
+	case "gauge":
+		val, ok = t.Metrics[mName].(*Gauge)
+		if !ok {
+			val = &Gauge{}
+			storage.Metrics[mName] = val.(*Gauge)
+		}
+	case "counter":
+		val, ok = t.Metrics[mName].(*Counter)
+		if !ok {
+			val = &Counter{}
+			storage.Metrics[mName] = val.(*Counter)
+		}
+	default:
+		return fmt.Errorf("unexpected metric type: %s", mType)
+	}
+
+	err := val.UpdateValueS(mValue)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Gauge - float64
 type Gauge struct {
 	Value float64
+}
+
+func (t Gauge) GetType() string {
+	return "gauge"
 }
 
 func (t Gauge) GetValue() interface{} {
@@ -52,6 +87,10 @@ func (t *Gauge) UpdateValueS(metricValueS string) error {
 // Counter - int64
 type Counter struct {
 	Value int64
+}
+
+func (t Counter) GetType() string {
+	return "counter"
 }
 
 func (t Counter) GetValue() interface{} {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -17,35 +16,41 @@ func updateMetric(w http.ResponseWriter, r *http.Request) {
 	mr.Name = chi.URLParam(r, "name")
 	mr.Value = chi.URLParam(r, "value")
 
-	switch mr.Type {
-	case "gauge":
-		val, ok := storage.Metrics[mr.Name].(*Gauge)
-		if !ok {
-			//create new item if not exists
-			val = &Gauge{}
-		}
-		err := val.UpdateValueS(mr.Value)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		storage.Metrics[mr.Name] = val
-	case "counter":
-		val, ok := storage.Metrics[mr.Name].(*Counter)
-		if !ok {
-			//create new item if not exists
-			val = &Counter{}
-		}
-		err := val.UpdateValueS(mr.Value)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		storage.Metrics[mr.Name] = val
-	default:
-		http.Error(w, fmt.Sprintf("unexpected metric type: %s", mr.Mode), http.StatusBadRequest)
+	err := storage.UpdateMetricS(mr.Type, mr.Name, mr.Value)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	// switch mr.Type {
+	// case "gauge":
+	// 	val, ok := storage.Metrics[mr.Name].(*Gauge)
+	// 	if !ok {
+	// 		//create new item if not exists
+	// 		val = &Gauge{}
+	// 	}
+	// 	err := val.UpdateValueS(mr.Value)
+	// 	if err != nil {
+	// 		w.WriteHeader(http.StatusBadRequest)
+	// 		return
+	// 	}
+	// 	storage.Metrics[mr.Name] = val
+	// case "counter":
+	// 	val, ok := storage.Metrics[mr.Name].(*Counter)
+	// 	if !ok {
+	// 		//create new item if not exists
+	// 		val = &Counter{}
+	// 	}
+	// 	err := val.UpdateValueS(mr.Value)
+	// 	if err != nil {
+	// 		w.WriteHeader(http.StatusBadRequest)
+	// 		return
+	// 	}
+	// 	storage.Metrics[mr.Name] = val
+	// default:
+	// 	http.Error(w, fmt.Sprintf("unexpected metric type: %s", mr.Mode), http.StatusBadRequest)
+	// 	return
+	// }
 
 	//w.WriteHeader(http.StatusOK)
 }
