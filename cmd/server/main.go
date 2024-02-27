@@ -1,8 +1,13 @@
 package main
 
 import (
-	"log"
+	"context"
+	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -18,18 +23,46 @@ type MetricRequest struct {
 var storage = NewMemStorage()
 
 func main() {
-	if err := run(); err != nil {
-		//logger.Error("Server error", zap.Error(err))
-		log.Fatal(err)
-	}
+	// create a context that we can cancel
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// a WaitGroup for the goroutines to tell us they've stopped
+	wg := sync.WaitGroup{}
+
+	// run `server` in it's own goroutine
+	wg.Add(1)
+	go server(ctx, &wg)
+
+	// if err := run(); err != nil {
+	// 	//logger.Error("Server error", zap.Error(err))
+	// 	log.Fatal(err)
+	// }
+
+	// listen for ^C
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
+	fmt.Println("srv: received ^C - shutting down")
+
+	// tell the goroutines to stop
+	fmt.Println("srv: telling goroutines to stop")
+	cancel()
+
+	// and wait for them to reply back
+	wg.Wait()
+	fmt.Println("srv: shutdown")
 }
 
-func run() error {
+func server(ctx context.Context, wg *sync.WaitGroup) {
+	//execute to exit wait group
+	defer wg.Done()
+
 	sc := InitServerConfig()
 
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		panic("cannot initialize zap logger")
+		panic("srv: cannot initialize zap logger")
 	}
 	defer logger.Sync()
 
@@ -39,7 +72,8 @@ func run() error {
 	//sugar.Errorf("Failed to fetch URL: %s", url)
 
 	//fmt.Printf("using endpoint: %s\n", sc.Endpoint)
-	sugar.Infof("using endpoint: %s", sc.Endpoint)
+	sugar.Infof("srv: using endpoint %s", sc.Endpoint)
+	sugar.Infof("srv: datafile %s", sc.FileStoragePath)
 
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
@@ -48,5 +82,26 @@ func run() error {
 	mux.Get("/value/{type}/{name}", requestMetric)
 	mux.Post("/update/{type}/{name}/{value}", updateMetric)
 
-	return http.ListenAndServe(sc.Endpoint, mux)
+	// create a server
+	srv := &http.Server{Addr: sc.Endpoint, Handler: mux}
+
+	go func() {
+		// service connections
+		if err := srv.ListenAndServe(); err != nil {
+			fmt.Printf("Listen: %s\n", err)
+			//log.Fatal(err)
+		}
+	}()
+
+	<-ctx.Done()
+	fmt.Println("srv: shutdown requested")
+
+	// shut down gracefully with timeout of 5 seconds max
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// ignore server error "Err shutting down server : context canceled"
+	srv.Shutdown(shutdownCtx)
+
+	fmt.Println("srv: server stopped")
 }
