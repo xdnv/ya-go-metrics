@@ -160,7 +160,6 @@ func sendMetric(ac AgentConfig, metricType string, metricName string, metricValu
 	case "v1":
 		resp, err = PostValueV1(ac.Endpoint, metricType, metricName, fmt.Sprint(&metricValue))
 	case "v2":
-		var buf bytes.Buffer
 		var m Metrics
 
 		m.MType = metricType
@@ -172,21 +171,27 @@ func sendMetric(ac AgentConfig, metricType string, metricName string, metricValu
 		case "counter":
 			m.Delta = metricValue.(*int64)
 		default:
-			fmt.Printf("ERROR: unsupported metric type %s", metricType)
+			fmt.Printf("ERROR: unsupported metric type [%s]", metricType)
 		}
 
-		jsonEncoder := json.NewEncoder(&buf)
-		jsonEncoder.Encode(m)
+		res, jsonerr := json.Marshal(m)
+		if err != nil {
+			fmt.Printf("ERROR: JSON marshaling failed [%s]", jsonerr)
+			return nil, jsonerr
+		}
 
-		fmt.Printf("TRACE: POST body %s", buf.String())
+		buf := bytes.NewBuffer(res)
 
-		resp, err = PostValueV2(ac.Endpoint, &buf)
+		fmt.Printf("TRACE: POST body %s", res)
+
+		resp, err = PostValueV2(ac.Endpoint, buf)
 	default:
 		fmt.Printf("ERROR: unsupported API version %s", ac.APIVersion)
 	}
 
 	if err != nil {
 		fmt.Printf("ERROR posting value: %s, %s", metricName, err)
+		return nil, err
 	}
 	if resp.StatusCode != 200 {
 		fmt.Println("response Status:", resp.Status)
