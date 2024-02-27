@@ -46,10 +46,12 @@ func PostValueV1(endpoint string, counterType string, counterName string, value 
 
 func PostValueV2(endpoint string, body *bytes.Buffer) (*http.Response, error) {
 	address := fmt.Sprintf("http://%s/update/", endpoint)
+
 	resp, err := http.Post(address, "application/json", body)
 	if err != nil {
 		return resp, err
 	}
+
 	return resp, nil
 }
 
@@ -171,18 +173,18 @@ func sendMetric(ac AgentConfig, metricType string, metricName string, metricValu
 		case "counter":
 			m.Delta = metricValue.(*int64)
 		default:
-			fmt.Printf("ERROR: unsupported metric type [%s]", metricType)
+			fmt.Printf("ERROR: unsupported metric type [%s]\n", metricType)
 		}
 
-		res, jsonerr := json.Marshal(m)
-		if err != nil {
-			fmt.Printf("ERROR: JSON marshaling failed [%s]", jsonerr)
+		jsonres, jsonerr := json.Marshal(m)
+		if jsonerr != nil {
+			fmt.Printf("ERROR: JSON marshaling failed [%s]\n", jsonerr)
 			return nil, jsonerr
 		}
 
-		buf := bytes.NewBuffer(res)
+		buf := bytes.NewBuffer(jsonres)
 
-		fmt.Printf("TRACE: POST body %s", res)
+		fmt.Printf("TRACE: POST body %s\n", buf)
 
 		resp, err = PostValueV2(ac.Endpoint, buf)
 	default:
@@ -190,7 +192,7 @@ func sendMetric(ac AgentConfig, metricType string, metricName string, metricValu
 	}
 
 	if err != nil {
-		fmt.Printf("ERROR posting value: %s, %s", metricName, err)
+		fmt.Printf("ERROR posting value: %s, %s\n", metricName, err)
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
