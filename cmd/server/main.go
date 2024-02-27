@@ -79,8 +79,10 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	mux.Use(middleware.Logger)
 
 	mux.Get("/", index)
-	mux.Get("/value/{type}/{name}", requestMetric)
-	mux.Post("/update/{type}/{name}/{value}", updateMetric)
+	mux.Post("/value/", requestMetricV2)
+	mux.Get("/value/{type}/{name}", requestMetricV1)
+	mux.Post("/update/", updateMetricV2)
+	mux.Post("/update/{type}/{name}/{value}", updateMetricV1)
 
 	// create a server
 	srv := &http.Server{Addr: sc.Endpoint, Handler: mux}

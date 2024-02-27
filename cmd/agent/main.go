@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -11,6 +13,14 @@ import (
 	"sync"
 	"time"
 )
+
+// iter7 storage class for JSON exchange
+type Metrics struct {
+	ID    string   `json:"id"`              // имя метрики
+	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
+	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
+	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+}
 
 type MetricStorage struct {
 	sync.RWMutex
@@ -25,9 +35,18 @@ func NewMetricStorage() *MetricStorage {
 	return &ms
 }
 
-func PostValue(endpoint string, counterType string, counterName string, value string) (*http.Response, error) {
+func PostValueV1(endpoint string, counterType string, counterName string, value string) (*http.Response, error) {
 	address := fmt.Sprintf("http://%s/update/%s/%s/%s", endpoint, counterType, counterName, value)
 	resp, err := http.Post(address, "text/plain", nil)
+	if err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
+func PostValueV2(endpoint string, body *bytes.Buffer) (*http.Response, error) {
+	address := fmt.Sprintf("http://%s/update/", endpoint)
+	resp, err := http.Post(address, "application/json", body)
 	if err != nil {
 		return resp, err
 	}
@@ -56,10 +75,6 @@ func collector(ac AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
 			ms.Counters["PollCount"]++
 			ms.Gauges["RandomValue"] = rand.Float64()
 
-			// Number of goroutines
-			// m.NumGoroutine = runtime.NumGoroutine()
-
-			// Misc memory stats
 			ms.Gauges["Alloc"] = float64(rtm.Alloc)
 			ms.Gauges["BuckHashSys"] = float64(rtm.BuckHashSys)
 			ms.Gauges["Frees"] = float64(rtm.Frees)
@@ -88,8 +103,8 @@ func collector(ac AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
 			ms.Gauges["Sys"] = float64(rtm.Sys)
 			ms.Gauges["TotalAlloc"] = float64(rtm.TotalAlloc)
 
-			// Live objects = Mallocs - Frees
-			// ms.LiveObjects = m.Mallocs - m.Frees
+			ms.Gauges["NumGoroutine"] = float64(runtime.NumGoroutine()) // Number of goroutines
+			ms.Gauges["LiveObjects"] = float64(rtm.Mallocs - rtm.Frees) // Live objects = Mallocs - Frees
 
 			ms.Unlock()
 		case <-ctx.Done():
@@ -110,7 +125,7 @@ func reporter(ac AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
 		select {
 		case now := <-ticker.C:
 			fmt.Printf("TRACE: send metrics [%s]\n", now.Format("2006-01-02 15:04:05"))
-			sendPayload(ac.Endpoint, ms)
+			sendPayload(ac, ms)
 		case <-ctx.Done():
 			fmt.Println("agent-reporter: stop requested")
 			return
@@ -118,17 +133,17 @@ func reporter(ac AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
-func sendPayload(endpoint string, m *MetricStorage) {
+func sendPayload(ac AgentConfig, m *MetricStorage) {
 	m.RLock()
 	defer m.RUnlock()
 
 	for k, v := range m.Gauges {
-		resp, _ := sendMetric(endpoint, "gauge", k, fmt.Sprint(v))
+		resp, _ := sendMetric(ac, "gauge", k, &v)
 		resp.Body.Close()
 	}
 
 	for k, v := range m.Counters {
-		resp, err := sendMetric(endpoint, "counter", k, fmt.Sprint(v))
+		resp, err := sendMetric(ac, "counter", k, &v)
 		resp.Body.Close()
 		//reset counter after successful transefer
 		if err == nil {
@@ -137,8 +152,38 @@ func sendPayload(endpoint string, m *MetricStorage) {
 	}
 }
 
-func sendMetric(endpoint string, metricType string, metricName string, metricValue string) (*http.Response, error) {
-	resp, err := PostValue(endpoint, metricType, metricName, metricValue)
+func sendMetric(ac AgentConfig, metricType string, metricName string, metricValue interface{}) (*http.Response, error) {
+	var resp *http.Response
+	var err error
+
+	switch ac.APIVersion {
+	case "v1":
+		resp, err = PostValueV1(ac.Endpoint, metricType, metricName, fmt.Sprint(&metricValue))
+	case "v2":
+		var buf bytes.Buffer
+		var m Metrics
+
+		m.MType = metricType
+		m.ID = metricName
+
+		switch metricType {
+		case "gauge":
+			m.Value = metricValue.(*float64)
+		case "counter":
+			m.Delta = metricValue.(*int64)
+		default:
+			fmt.Printf("ERROR: unsupported metric type %s", metricType)
+		}
+
+		jsonEncoder := json.NewEncoder(&buf)
+		jsonEncoder.Encode(m)
+
+		fmt.Printf("TRACE: POST body %s", buf.String())
+
+		resp, err = PostValueV2(ac.Endpoint, &buf)
+	default:
+		fmt.Printf("ERROR: unsupported API version %s", ac.APIVersion)
+	}
 
 	if err != nil {
 		fmt.Printf("ERROR posting value: %s, %s", metricName, err)

@@ -12,10 +12,14 @@ type AgentConfig struct {
 	ReportInterval int64
 	PollInterval   int64
 	LogLevel       string
+	APIVersion     string
 }
 
 func InitAgentConfig() AgentConfig {
 	cf := AgentConfig{}
+
+	//activate JSON support
+	cf.APIVersion = "v2"
 
 	//set defaults and read command line
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port server endpoint to send metric data")
