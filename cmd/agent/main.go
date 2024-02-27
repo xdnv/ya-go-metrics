@@ -140,15 +140,17 @@ func sendPayload(ac AgentConfig, m *MetricStorage) {
 	defer m.RUnlock()
 
 	for k, v := range m.Gauges {
-		resp, _ := sendMetric(ac, "gauge", k, &v)
-		resp.Body.Close()
+		resp, err := sendMetric(ac, "gauge", k, &v)
+		if err == nil {
+			resp.Body.Close()
+		}
 	}
 
 	for k, v := range m.Counters {
 		resp, err := sendMetric(ac, "counter", k, &v)
-		resp.Body.Close()
 		//reset counter after successful transefer
 		if err == nil {
+			resp.Body.Close()
 			m.Counters[k] = 0
 		}
 	}
