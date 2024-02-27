@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -35,8 +36,8 @@ func NewMetricStorage() *MetricStorage {
 	return &ms
 }
 
-func PostValueV1(endpoint string, counterType string, counterName string, value string) (*http.Response, error) {
-	address := fmt.Sprintf("http://%s/update/%s/%s/%s", endpoint, counterType, counterName, value)
+func PostValueV1(ac AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
+	address := fmt.Sprintf("http://%s/update/%s/%s/%s", ac.Endpoint, counterType, counterName, value)
 	resp, err := http.Post(address, "text/plain", nil)
 	if err != nil {
 		return resp, err
@@ -44,10 +45,32 @@ func PostValueV1(endpoint string, counterType string, counterName string, value 
 	return resp, nil
 }
 
-func PostValueV2(endpoint string, body *bytes.Buffer) (*http.Response, error) {
-	address := fmt.Sprintf("http://%s/update/", endpoint)
+func PostValueV2(ac AgentConfig, body *bytes.Buffer) (*http.Response, error) {
+	contentType := "application/json"
 
-	resp, err := http.Post(address, "application/json", body)
+	address := fmt.Sprintf("http://%s/update/", ac.Endpoint)
+
+	var buf bytes.Buffer
+
+	if ac.UseCompression {
+		g := gzip.NewWriter(&buf)
+		if _, err := g.Write(body.Bytes()); err != nil {
+			return nil, err
+		}
+		if err := g.Close(); err != nil {
+			return nil, err
+		}
+		r, err := http.NewRequest("POST", address, body)
+		if err != nil {
+			return nil, err
+		}
+		r.Header.Set("Content-Type", contentType)
+		r.Header.Set("Content-Encoding", "gzip")
+		r.Header.Set("Accept-Encoding", "gzip")
+		http.DefaultClient.Do(r)
+	}
+
+	resp, err := http.Post(address, contentType, body)
 	if err != nil {
 		return resp, err
 	}
@@ -162,7 +185,7 @@ func sendMetric(ac AgentConfig, metricType string, metricName string, metricValu
 
 	switch ac.APIVersion {
 	case "v1":
-		resp, err = PostValueV1(ac.Endpoint, metricType, metricName, fmt.Sprint(&metricValue))
+		resp, err = PostValueV1(ac, metricType, metricName, fmt.Sprint(&metricValue))
 	case "v2":
 		var m Metrics
 
@@ -188,7 +211,7 @@ func sendMetric(ac AgentConfig, metricType string, metricName string, metricValu
 
 		fmt.Printf("TRACE: POST body %s\n", buf)
 
-		resp, err = PostValueV2(ac.Endpoint, buf)
+		resp, err = PostValueV2(ac, buf)
 	default:
 		fmt.Printf("ERROR: unsupported API version %s", ac.APIVersion)
 	}

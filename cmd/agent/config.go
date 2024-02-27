@@ -13,6 +13,7 @@ type AgentConfig struct {
 	PollInterval   int64
 	LogLevel       string
 	APIVersion     string
+	UseCompression bool
 }
 
 func InitAgentConfig() AgentConfig {
@@ -20,6 +21,8 @@ func InitAgentConfig() AgentConfig {
 
 	//activate JSON support
 	cf.APIVersion = "v2"
+	//activate gzip compression
+	cf.UseCompression = true
 
 	//set defaults and read command line
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port server endpoint to send metric data")
