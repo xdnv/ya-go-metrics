@@ -3,24 +3,17 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"internal/domain"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 )
 
-// iter7 storage class for JSON exchange
-type Metrics struct {
-	ID    string   `json:"id"`              // имя метрики
-	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
-	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
-	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
-}
-
 // HTTP update processing
 func updateMetricV1(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-	mr := new(MetricRequest)
+	mr := new(domain.MetricRequest)
 	mr.Type = chi.URLParam(r, "type")
 	mr.Name = chi.URLParam(r, "name")
 	mr.Value = chi.URLParam(r, "value")
@@ -38,7 +31,7 @@ func updateMetricV1(w http.ResponseWriter, r *http.Request) {
 func updateMetricV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var m Metrics
+	var m domain.Metrics
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 		fmt.Printf("TRACE ERROR: %s", err.Error())
@@ -46,7 +39,7 @@ func updateMetricV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mr := new(MetricRequest)
+	mr := new(domain.MetricRequest)
 	mr.Type = m.MType
 	mr.Name = m.ID
 

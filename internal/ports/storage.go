@@ -1,9 +1,19 @@
-package main
+package ports
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 )
+
+// iter7 storage class for JSON exchange
+type SerializableMetric struct {
+	ID         string  `json:"id"`
+	MType      string  `json:"type"`
+	IntValue   int64   `json:"counter_value,omitempty"`
+	FloatValue float64 `json:"gauge_value,omitempty"`
+}
 
 // metric structure
 type MetricMap map[string]Metric
@@ -16,6 +26,10 @@ type Metric interface {
 }
 
 func GetMetricValue(t Metric) interface{} {
+	return t.GetValue()
+}
+
+func GetSerializableMetric(t Metric) interface{} {
 	return t.GetValue()
 }
 
@@ -33,13 +47,13 @@ func (t MemStorage) UpdateMetricS(mType string, mName string, mValue string) err
 		val, ok = t.Metrics[mName].(*Gauge)
 		if !ok {
 			val = &Gauge{}
-			storage.Metrics[mName] = val.(*Gauge)
+			t.Metrics[mName] = val.(*Gauge)
 		}
 	case "counter":
 		val, ok = t.Metrics[mName].(*Counter)
 		if !ok {
 			val = &Counter{}
-			storage.Metrics[mName] = val.(*Counter)
+			t.Metrics[mName] = val.(*Counter)
 		}
 	default:
 		return fmt.Errorf("unexpected metric type: %s", mType)
@@ -116,4 +130,15 @@ func NewMemStorage() MemStorage {
 	return MemStorage{
 		Metrics: make(MetricMap),
 	}
+}
+
+// Save settings
+func (MemStorage MemStorage) Save(fname string) error {
+	// serialize to JSON
+	data, err := json.MarshalIndent(MemStorage.Metrics, "", "   ")
+	if err != nil {
+		return err
+	}
+	// сохраняем данные в файл
+	return os.WriteFile(fname, data, 0666)
 }

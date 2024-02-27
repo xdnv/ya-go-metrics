@@ -14,3 +14,13 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+require internal/domain v1.0.0
+replace internal/domain => ./internal/domain
+
+require internal/ports v1.0.0
+replace internal/ports => ./internal/ports
+
+require internal/app v1.0.0
+replace internal/app => ./internal/app
+

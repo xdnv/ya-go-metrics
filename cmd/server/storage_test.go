@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	. "internal/ports"
+
 	"github.com/stretchr/testify/assert"
 )
 

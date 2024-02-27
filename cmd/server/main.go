@@ -9,18 +9,15 @@ import (
 	"sync"
 	"time"
 
+	"internal/app"
+	"internal/ports"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
-type MetricRequest struct {
-	Type  string
-	Name  string
-	Value string
-}
-
-var storage = NewMemStorage()
+var storage = ports.NewMemStorage()
 
 func main() {
 	// create a context that we can cancel
@@ -58,7 +55,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
-	sc := InitServerConfig()
+	sc := app.InitServerConfig()
 
 	logger, err := zap.NewDevelopment()
 	if err != nil {

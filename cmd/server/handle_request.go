@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"internal/domain"
+
 	"github.com/go-chi/chi/v5"
 )
 
@@ -12,7 +14,7 @@ import (
 func requestMetricV1(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-	mr := new(MetricRequest)
+	mr := new(domain.MetricRequest)
 	mr.Type = chi.URLParam(r, "type")
 	mr.Name = chi.URLParam(r, "name")
 
@@ -42,7 +44,7 @@ func requestMetricV1(w http.ResponseWriter, r *http.Request) {
 func requestMetricV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var m Metrics
+	var m domain.Metrics
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 		fmt.Printf("TRACE ERROR: %s", err.Error())
@@ -50,7 +52,7 @@ func requestMetricV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mr := new(MetricRequest)
+	mr := new(domain.MetricRequest)
 	mr.Type = m.MType
 	mr.Name = m.ID
 

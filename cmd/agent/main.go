@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"internal/app"
+	"internal/domain"
 	"math/rand"
 	"net/http"
 	"os"
@@ -15,28 +17,7 @@ import (
 	"time"
 )
 
-// iter7 storage class for JSON exchange
-type Metrics struct {
-	ID    string   `json:"id"`              // имя метрики
-	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
-	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
-	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
-}
-
-type MetricStorage struct {
-	sync.RWMutex
-	Gauges   map[string]float64
-	Counters map[string]int64
-}
-
-func NewMetricStorage() *MetricStorage {
-	var ms MetricStorage
-	ms.Gauges = make(map[string]float64)
-	ms.Counters = make(map[string]int64)
-	return &ms
-}
-
-func PostValueV1(ac AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
+func PostValueV1(ac app.AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
 	address := fmt.Sprintf("http://%s/update/%s/%s/%s", ac.Endpoint, counterType, counterName, value)
 	resp, err := http.Post(address, "text/plain", nil)
 	if err != nil {
@@ -45,7 +26,7 @@ func PostValueV1(ac AgentConfig, counterType string, counterName string, value s
 	return resp, nil
 }
 
-func PostValueV2(ac AgentConfig, body *bytes.Buffer) (*http.Response, error) {
+func PostValueV2(ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error) {
 	contentType := "application/json"
 
 	address := fmt.Sprintf("http://%s/update/", ac.Endpoint)
@@ -78,7 +59,7 @@ func PostValueV2(ac AgentConfig, body *bytes.Buffer) (*http.Response, error) {
 	return resp, nil
 }
 
-func collector(ac AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
+func collector(ac app.AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
@@ -139,7 +120,7 @@ func collector(ac AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
-func reporter(ac AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
+func reporter(ac app.AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
@@ -158,7 +139,7 @@ func reporter(ac AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
-func sendPayload(ac AgentConfig, m *MetricStorage) {
+func sendPayload(ac app.AgentConfig, m *domain.MetricStorage) {
 	m.RLock()
 	defer m.RUnlock()
 
@@ -179,7 +160,7 @@ func sendPayload(ac AgentConfig, m *MetricStorage) {
 	}
 }
 
-func sendMetric(ac AgentConfig, metricType string, metricName string, metricValue interface{}) (*http.Response, error) {
+func sendMetric(ac app.AgentConfig, metricType string, metricName string, metricValue interface{}) (*http.Response, error) {
 	var resp *http.Response
 	var err error
 
@@ -187,7 +168,7 @@ func sendMetric(ac AgentConfig, metricType string, metricName string, metricValu
 	case "v1":
 		resp, err = PostValueV1(ac, metricType, metricName, fmt.Sprint(&metricValue))
 	case "v2":
-		var m Metrics
+		var m domain.Metrics
 
 		m.MType = metricType
 		m.ID = metricName
@@ -228,7 +209,7 @@ func sendMetric(ac AgentConfig, metricType string, metricName string, metricValu
 }
 
 // global metric storage
-var ms = NewMetricStorage()
+var ms = domain.NewMetricStorage()
 
 func main() {
 	// create a context that we can cancel
@@ -260,7 +241,7 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
-	ac := InitAgentConfig()
+	ac := app.InitAgentConfig()
 	fmt.Printf("agent: using endpoint %s\n", ac.Endpoint)
 	fmt.Printf("agent: poll interval %d\n", ac.PollInterval)
 	fmt.Printf("agent: report interval %d\n", ac.ReportInterval)

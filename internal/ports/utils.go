@@ -1,11 +1,11 @@
-package main
+package ports
 
 import (
 	"cmp"
 	"sort"
 )
 
-func sortKeys[K cmp.Ordered, V any](m map[K]V) []K {
+func SortKeys[K cmp.Ordered, V any](m map[K]V) []K {
 	keys := make([]K, len(m))
 	i := 0
 	for k := range m {

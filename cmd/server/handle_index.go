@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"internal/ports"
 	"net/http"
 )
 
@@ -43,7 +44,7 @@ func index(w http.ResponseWriter, r *http.Request) {
 
 	htmlBody := fmt.Sprintf(indexTableHeaderTpl, "Metric", "Value")
 
-	for _, key := range sortKeys(storage.Metrics) {
+	for _, key := range ports.SortKeys(storage.Metrics) {
 		htmlBody += fmt.Sprintf(indexTableRowTpl, key, storage.Metrics[key].GetValue())
 	}
 	htmlBody = fmt.Sprintf(indexTableTpl, htmlBody)
