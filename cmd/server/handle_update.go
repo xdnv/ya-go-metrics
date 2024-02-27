@@ -56,7 +56,7 @@ func updateMetricV2(w http.ResponseWriter, r *http.Request) {
 	case "counter":
 		mr.Value = fmt.Sprint(*m.Delta)
 	default:
-		http.Error(w, fmt.Sprintf("ERROR: unsupported metric type %s", mr.Type), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("ERROR: unsupported metric type %s", mr.Type), http.StatusNotFound)
 	}
 
 	err := storage.UpdateMetricS(mr.Type, mr.Name, mr.Value)

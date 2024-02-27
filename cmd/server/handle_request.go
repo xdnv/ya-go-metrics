@@ -42,16 +42,24 @@ func requestMetricV1(w http.ResponseWriter, r *http.Request) {
 func requestMetricV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	var m Metrics
+
+	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+		fmt.Printf("TRACE ERROR: %s", err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	mr := new(MetricRequest)
-	mr.Type = chi.URLParam(r, "type")
-	mr.Name = chi.URLParam(r, "name")
+	mr.Type = m.MType
+	mr.Name = m.ID
 
 	//type validation
 	switch mr.Type {
 	case "gauge":
 	case "counter":
 	default:
-		http.Error(w, fmt.Sprintf("unexpected metric type: %s", mr.Type), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("unexpected metric type: %s", mr.Type), http.StatusNotFound)
 		return
 	}
 
@@ -61,10 +69,7 @@ func requestMetricV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var m Metrics
-	m.MType = mr.Type
-	m.ID = mr.Name
-
+	//return current metric value
 	switch mr.Type {
 	case "gauge":
 		metricValue := metric.GetValue().(float64)
