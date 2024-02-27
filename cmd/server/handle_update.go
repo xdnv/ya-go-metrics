@@ -36,6 +36,8 @@ func updateMetricV1(w http.ResponseWriter, r *http.Request) {
 
 // HTTP update processing
 func updateMetricV2(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	var m Metrics
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -80,7 +82,7 @@ func updateMetricV2(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+
 	w.WriteHeader(http.StatusOK)
 	w.Write(resp)
 }

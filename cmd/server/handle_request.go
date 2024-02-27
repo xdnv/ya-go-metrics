@@ -40,6 +40,8 @@ func requestMetricV1(w http.ResponseWriter, r *http.Request) {
 
 // HTTP request processing
 func requestMetricV2(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	mr := new(MetricRequest)
 	mr.Type = chi.URLParam(r, "type")
 	mr.Name = chi.URLParam(r, "name")
@@ -78,7 +80,6 @@ func requestMetricV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(resp)
 }
