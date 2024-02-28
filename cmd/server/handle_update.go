@@ -24,6 +24,14 @@ func updateMetricV1(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//save dump if set to immediate mode
+	if (sc.FileStoragePath != "") && (sc.StoreInterval == 0) {
+		err := storage.SaveState(sc.FileStoragePath)
+		if err != nil {
+			fmt.Printf("srv-updateMetricV1: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+		}
+	}
+
 	//w.WriteHeader(http.StatusOK)
 }
 
@@ -57,6 +65,14 @@ func updateMetricV2(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("UPDATE ERROR: %s", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+
+	//save dump if set to immediate mode
+	if (sc.FileStoragePath != "") && (sc.StoreInterval == 0) {
+		err := storage.SaveState(sc.FileStoragePath)
+		if err != nil {
+			fmt.Printf("srv-updateMetricV2: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+		}
 	}
 
 	metric := storage.Metrics[mr.Name]

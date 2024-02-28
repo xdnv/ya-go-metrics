@@ -18,6 +18,7 @@ import (
 )
 
 var storage = ports.NewMemStorage()
+var sc = app.InitServerConfig()
 
 func main() {
 	// create a context that we can cancel
@@ -55,8 +56,6 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
-	sc := app.InitServerConfig()
-
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		panic("srv: cannot initialize zap logger")
@@ -79,6 +78,10 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 			fmt.Printf("srv: failed to load server state from [%s], error: %s\n", sc.FileStoragePath, err)
 		}
 	}
+
+	//regular dumper
+	wg.Add(1)
+	go stateDumper(sc, ctx, wg)
 
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
@@ -120,4 +123,33 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	}
 
 	fmt.Println("srv: server stopped")
+}
+
+func stateDumper(sc app.ServerConfig, ctx context.Context, wg *sync.WaitGroup) {
+	//execute to exit wait group
+	defer wg.Done()
+
+	//save dump is disabled or set to immediate mode
+	if (sc.FileStoragePath == "") || (sc.StoreInterval == 0) {
+		return
+	}
+
+	ticker := time.NewTicker(time.Duration(sc.StoreInterval) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case now := <-ticker.C:
+			fmt.Printf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05"))
+
+			err := storage.SaveState(sc.FileStoragePath)
+			if err != nil {
+				fmt.Printf("srv-dumper: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+			}
+		case <-ctx.Done():
+			fmt.Println("srv-dumper: stop requested")
+			return
+		}
+	}
+
 }
