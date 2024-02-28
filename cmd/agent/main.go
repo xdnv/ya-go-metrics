@@ -17,6 +17,8 @@ import (
 	"time"
 )
 
+var ac app.AgentConfig
+
 func PostValueV1(ac app.AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
 	address := fmt.Sprintf("http://%s/update/%s/%s/%s", ac.Endpoint, counterType, counterName, value)
 	resp, err := http.Post(address, "text/plain", nil)
@@ -221,6 +223,9 @@ func main() {
 	// a WaitGroup for the goroutines to tell us they've stopped
 	wg := sync.WaitGroup{}
 
+	//Warning! do not run outside function, it will break tests due to flag.Parse()
+	ac = app.InitAgentConfig()
+
 	wg.Add(1)
 	go agent(ctx, &wg)
 
@@ -243,7 +248,6 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
-	ac := app.InitAgentConfig()
 	fmt.Printf("agent: using endpoint %s\n", ac.Endpoint)
 	fmt.Printf("agent: poll interval %d\n", ac.PollInterval)
 	fmt.Printf("agent: report interval %d\n", ac.ReportInterval)

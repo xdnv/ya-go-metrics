@@ -18,7 +18,7 @@ import (
 )
 
 var storage = ports.NewMemStorage()
-var sc = app.InitServerConfig()
+var sc app.ServerConfig
 
 func main() {
 	// create a context that we can cancel
@@ -27,6 +27,9 @@ func main() {
 
 	// a WaitGroup for the goroutines to tell us they've stopped
 	wg := sync.WaitGroup{}
+
+	//Warning! do not run outside function, it will break tests due to flag.Parse()
+	sc = app.InitServerConfig()
 
 	// run `server` in it's own goroutine
 	wg.Add(1)

@@ -11,6 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var _ = func() bool {
+	testing.Init()
+	return true
+}()
+
 func Test_index(t *testing.T) {
 	type want struct {
 		contentType string
