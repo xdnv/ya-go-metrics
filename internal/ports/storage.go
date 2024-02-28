@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-// iter7 storage class for JSON exchange
+// serializable storage class for JSON exchange
 type SerializableMetric struct {
 	ID         string  `json:"id"`
 	MType      string  `json:"type"`
@@ -185,7 +185,7 @@ func (t MemStorage) SaveState(fname string) error {
 	return os.WriteFile(fname, data, 0666)
 }
 
-// Save server state
+// Load server state
 func (t MemStorage) LoadState(fname string) error {
 
 	sma := []SerializableMetric{}
