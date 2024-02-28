@@ -29,10 +29,6 @@ func GetMetricValue(t Metric) interface{} {
 	return t.GetValue()
 }
 
-func GetSerializableMetric(t Metric) interface{} {
-	return t.GetValue()
-}
-
 // main metric storage
 type MemStorage struct {
 	Metrics MetricMap
@@ -132,13 +128,92 @@ func NewMemStorage() MemStorage {
 	}
 }
 
-// Save settings
-func (MemStorage MemStorage) Save(fname string) error {
-	// serialize to JSON
-	data, err := json.MarshalIndent(MemStorage.Metrics, "", "   ")
+func (t MemStorage) GetSerializableMetric(name string) (*SerializableMetric, error) {
+
+	sm := new(SerializableMetric)
+	sm.ID = name
+
+	metric, ok := t.Metrics[name]
+
+	if !ok {
+		return nil, fmt.Errorf("metric not found: %s", name)
+	}
+
+	sm.MType = metric.GetType()
+
+	switch sm.MType {
+	case "gauge":
+		sm.FloatValue = metric.GetValue().(float64)
+	case "counter":
+		sm.IntValue = metric.GetValue().(int64)
+	default:
+		return nil, fmt.Errorf("unexpected metric type: %s", sm.MType)
+	}
+
+	return sm, nil
+}
+
+func (t MemStorage) GetSerializableStorage() ([]SerializableMetric, error) {
+
+	sma := []SerializableMetric{}
+
+	for k := range t.Metrics {
+		sm, err := t.GetSerializableMetric(k)
+		if err != nil {
+			return nil, err
+		}
+		sma = append(sma, *sm)
+	}
+
+	return sma, nil
+}
+
+// Save server state
+func (t MemStorage) SaveState(fname string) error {
+
+	sma, err := t.GetSerializableStorage()
 	if err != nil {
 		return err
 	}
-	// сохраняем данные в файл
+
+	// serialize to JSON
+	data, err := json.Marshal(sma)
+	if err != nil {
+		return err
+	}
+	// save serialized data to file
 	return os.WriteFile(fname, data, 0666)
+}
+
+// Save server state
+func (t MemStorage) LoadState(fname string) error {
+
+	sma := []SerializableMetric{}
+
+	data, err := os.ReadFile(fname)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(data, &sma); err != nil {
+		return err
+	}
+
+	//clear all existing metrics
+	for k := range t.Metrics {
+		delete(t.Metrics, k)
+	}
+
+	for _, sm := range sma {
+		switch sm.MType {
+		case "gauge":
+			t.Metrics[sm.ID] = &Gauge{Value: sm.FloatValue}
+		case "counter":
+			t.Metrics[sm.ID] = &Counter{Value: sm.IntValue}
+		default:
+			return fmt.Errorf("unknown metric type: %s", sm.MType)
+		}
+	}
+
+	return nil
 }

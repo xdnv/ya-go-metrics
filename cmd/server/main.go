@@ -72,6 +72,14 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	sugar.Infof("srv: using endpoint %s", sc.Endpoint)
 	sugar.Infof("srv: datafile %s", sc.FileStoragePath)
 
+	//read server state on start
+	if (sc.FileStoragePath != "") && sc.RestoreMetrics {
+		err = storage.LoadState(sc.FileStoragePath)
+		if err != nil {
+			fmt.Printf("srv: failed to load server state from [%s], error: %s\n", sc.FileStoragePath, err)
+		}
+	}
+
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Compress(5))
@@ -102,6 +110,14 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 
 	// ignore server error "Err shutting down server : context canceled"
 	srv.Shutdown(shutdownCtx)
+
+	//save server state on shutdown
+	if sc.FileStoragePath != "" {
+		err = storage.SaveState(sc.FileStoragePath)
+		if err != nil {
+			fmt.Printf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+		}
+	}
 
 	fmt.Println("srv: server stopped")
 }

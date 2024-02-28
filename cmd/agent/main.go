@@ -31,32 +31,34 @@ func PostValueV2(ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error)
 
 	address := fmt.Sprintf("http://%s/update/", ac.Endpoint)
 
+	//older API
+	if !ac.UseCompression {
+		resp, err := http.Post(address, contentType, body)
+		if err != nil {
+			return resp, err
+		}
+		return resp, nil
+	}
+
 	var buf bytes.Buffer
 
-	if ac.UseCompression {
-		g := gzip.NewWriter(&buf)
-		if _, err := g.Write(body.Bytes()); err != nil {
-			return nil, err
-		}
-		if err := g.Close(); err != nil {
-			return nil, err
-		}
-		r, err := http.NewRequest("POST", address, body)
-		if err != nil {
-			return nil, err
-		}
-		r.Header.Set("Content-Type", contentType)
-		r.Header.Set("Content-Encoding", "gzip")
-		r.Header.Set("Accept-Encoding", "gzip")
-		http.DefaultClient.Do(r)
+	g := gzip.NewWriter(&buf)
+	if _, err := g.Write(body.Bytes()); err != nil {
+		return nil, err
 	}
-
-	resp, err := http.Post(address, contentType, body)
+	if err := g.Close(); err != nil {
+		return nil, err
+	}
+	r, err := http.NewRequest("POST", address, &buf)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+	r.Header.Set("Content-Type", contentType)
+	r.Header.Set("Content-Encoding", "gzip")
+	r.Header.Set("Accept-Encoding", "gzip")
+	resp, err := http.DefaultClient.Do(r)
 
-	return resp, nil
+	return resp, err
 }
 
 func collector(ac app.AgentConfig, ctx context.Context, wg *sync.WaitGroup) {

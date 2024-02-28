@@ -34,7 +34,7 @@ func updateMetricV2(w http.ResponseWriter, r *http.Request) {
 	var m domain.Metrics
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		fmt.Printf("TRACE ERROR: %s", err.Error())
+		fmt.Printf("DECODE ERROR: %s", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -54,7 +54,7 @@ func updateMetricV2(w http.ResponseWriter, r *http.Request) {
 
 	err := storage.UpdateMetricS(mr.Type, mr.Name, mr.Value)
 	if err != nil {
-		fmt.Printf("TRACE ERROR: %s", err.Error())
+		fmt.Printf("UPDATE ERROR: %s", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
