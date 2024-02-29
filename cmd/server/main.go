@@ -12,9 +12,10 @@ import (
 	"internal/app"
 	"internal/ports"
 
+	"internal/adapters/logger"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"go.uber.org/zap"
 )
 
 var storage = ports.NewMemStorage()
@@ -59,24 +60,26 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic("srv: cannot initialize zap logger")
-	}
-	defer logger.Sync()
+	// logger, err := zap.NewDevelopment()
+	// if err != nil {
+	// 	panic("srv: cannot initialize zap logger")
+	// }
+	// defer logger.Sync()
 
-	sugar := logger.Sugar()
+	// sugar := logger.Sugar()
 
 	//sugar.Infof("Failed to fetch URL: %s", url)
 	//sugar.Errorf("Failed to fetch URL: %s", url)
 
 	//fmt.Printf("using endpoint: %s\n", sc.Endpoint)
-	sugar.Infof("srv: using endpoint %s", sc.Endpoint)
-	sugar.Infof("srv: datafile %s", sc.FileStoragePath)
+	//sugar.Infof("srv: using endpoint %s", sc.Endpoint)
+	//sugar.Infof("srv: datafile %s", sc.FileStoragePath)
+	logger.Info(fmt.Sprintf("srv: using endpoint %s", sc.Endpoint))
+	logger.Info(fmt.Sprintf("srv: datafile %s", sc.FileStoragePath))
 
 	//read server state on start
 	if (sc.FileStoragePath != "") && sc.RestoreMetrics {
-		err = storage.LoadState(sc.FileStoragePath)
+		err := storage.LoadState(sc.FileStoragePath)
 		if err != nil {
 			fmt.Printf("srv: failed to load server state from [%s], error: %s\n", sc.FileStoragePath, err)
 		}
@@ -108,7 +111,8 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	}()
 
 	<-ctx.Done()
-	fmt.Println("srv: shutdown requested")
+	//fmt.Println("srv: shutdown requested")
+	logger.Info("srv: shutdown requested")
 
 	// shut down gracefully with timeout of 5 seconds max
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -119,9 +123,10 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 
 	//save server state on shutdown
 	if sc.FileStoragePath != "" {
-		err = storage.SaveState(sc.FileStoragePath)
+		err := storage.SaveState(sc.FileStoragePath)
 		if err != nil {
-			fmt.Printf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+			//fmt.Printf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+			logger.Info(fmt.Sprintf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
 		}
 	}
 
