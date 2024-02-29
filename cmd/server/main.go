@@ -22,6 +22,9 @@ var storage = ports.NewMemStorage()
 var sc app.ServerConfig
 
 func main() {
+	//sync internal/logger upon exit
+	defer logger.Sync()
+
 	// create a context that we can cancel
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
