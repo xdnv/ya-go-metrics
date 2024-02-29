@@ -93,7 +93,8 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	go stateDumper(sc, ctx, wg)
 
 	mux := chi.NewRouter()
-	mux.Use(middleware.Logger)
+	//mux.Use(middleware.Logger)
+	mux.Use(logger.LoggerMiddleware)
 	mux.Use(middleware.Compress(5))
 
 	mux.Get("/", index)
