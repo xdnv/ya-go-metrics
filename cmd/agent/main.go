@@ -63,7 +63,7 @@ func PostValueV2(ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error)
 	return resp, err
 }
 
-func collector(ac app.AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
+func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
@@ -124,7 +124,7 @@ func collector(ac app.AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
-func reporter(ac app.AgentConfig, ctx context.Context, wg *sync.WaitGroup) {
+func reporter(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
@@ -253,9 +253,9 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	fmt.Printf("agent: report interval %d\n", ac.ReportInterval)
 
 	wg.Add(1)
-	go collector(ac, ctx, wg)
+	go collector(ctx, ac, wg)
 	wg.Add(1)
-	go reporter(ac, ctx, wg)
+	go reporter(ctx, ac, wg)
 
 	<-ctx.Done()
 	fmt.Println("agent: shutdown requested")

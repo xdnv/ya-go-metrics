@@ -90,7 +90,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 
 	//regular dumper
 	wg.Add(1)
-	go stateDumper(sc, ctx, wg)
+	go stateDumper(ctx, sc, wg)
 
 	mux := chi.NewRouter()
 	//mux.Use(middleware.Logger)
@@ -137,7 +137,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	fmt.Println("srv: server stopped")
 }
 
-func stateDumper(sc app.ServerConfig, ctx context.Context, wg *sync.WaitGroup) {
+func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 

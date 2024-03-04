@@ -10,14 +10,14 @@ var zapLog *zap.Logger
 func init() {
 	var err error
 	//config := zap.NewProductionConfig()
-	//enccoderConfig := zap.NewProductionEncoderConfig()
+	//encoderConfig := zap.NewProductionEncoderConfig()
 	config := zap.NewDevelopmentConfig()
-	enccoderConfig := zap.NewDevelopmentEncoderConfig()
-	enccoderConfig.TimeKey = "timestamp"
-	enccoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02T15:04:05")
-	enccoderConfig.CallerKey = ""     // to hide caller line key info
-	enccoderConfig.StacktraceKey = "" // to hide stacktrace info
-	config.EncoderConfig = enccoderConfig
+	encoderConfig := zap.NewDevelopmentEncoderConfig()
+	encoderConfig.TimeKey = "timestamp"
+	encoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("2006-01-02T15:04:05")
+	encoderConfig.CallerKey = ""     // to hide caller line key info
+	encoderConfig.StacktraceKey = "" // to hide stacktrace info
+	config.EncoderConfig = encoderConfig
 
 	zapLog, err = config.Build(zap.AddCallerSkip(1))
 	if err != nil {
