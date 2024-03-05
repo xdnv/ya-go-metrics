@@ -260,9 +260,9 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	<-ctx.Done()
 	fmt.Println("agent: shutdown requested")
 
-	// shut down gracefully with timeout of 5 seconds max
-	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// // shut down gracefully with timeout of 5 seconds max
+	// _, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// defer cancel()
 
 	fmt.Println("agent: stopped")
 }
