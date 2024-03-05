@@ -25,7 +25,7 @@ import (
 var stor = storage.NewMemStorage()
 var sc app.ServerConfig
 
-func handle_GZIP(next http.Handler) http.Handler {
+func handleGZIPRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
 			next.ServeHTTP(rw, r)
@@ -127,7 +127,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	mux := chi.NewRouter()
 	//mux.Use(middleware.Logger)
 	mux.Use(logger.LoggerMiddleware)
-	mux.Use(handle_GZIP)
+	mux.Use(handleGZIPRequests)
 	mux.Use(middleware.Compress(5, sc.CompressibleContentTypes...))
 
 	mux.Get("/", index)
