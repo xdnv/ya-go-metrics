@@ -95,7 +95,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	mux := chi.NewRouter()
 	//mux.Use(middleware.Logger)
 	mux.Use(logger.LoggerMiddleware)
-	mux.Use(middleware.Compress(5))
+	mux.Use(middleware.Compress(5, sc.CompressibleContentTypes...))
 
 	mux.Get("/", index)
 	mux.Post("/value/", requestMetricV2)

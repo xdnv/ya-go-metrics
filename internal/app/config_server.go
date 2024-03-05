@@ -7,15 +7,21 @@ import (
 )
 
 type ServerConfig struct {
-	Endpoint        string
-	StoreInterval   int64
-	FileStoragePath string
-	RestoreMetrics  bool
-	LogLevel        string
+	Endpoint                 string
+	StoreInterval            int64
+	FileStoragePath          string
+	RestoreMetrics           bool
+	LogLevel                 string
+	CompressibleContentTypes []string
 }
 
 func InitServerConfig() ServerConfig {
 	cf := ServerConfig{}
+
+	cf.CompressibleContentTypes = []string{
+		"text/html",
+		"application/json",
+	}
 
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port endpoint for server to listen")
 	flag.Int64Var(&cf.StoreInterval, "i", 300, "interval in seconds to store metrics in datafile, set 0 for synchronous output")
