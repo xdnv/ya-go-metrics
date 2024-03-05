@@ -23,9 +23,9 @@ require internal/domain v1.0.0
 
 replace internal/domain => ./internal/domain
 
-require internal/ports v1.0.0
+require internal/ports/storage v1.0.0
 
-replace internal/ports => ./internal/ports
+replace internal/ports/storage => ./internal/ports/storage
 
 require internal/app v1.0.0
 

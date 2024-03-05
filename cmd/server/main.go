@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"internal/app"
-	"internal/ports"
+	"internal/ports/storage"
 
 	"internal/adapters/logger"
 
@@ -18,7 +18,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-var storage = ports.NewMemStorage()
+var stor = storage.NewMemStorage()
 var sc app.ServerConfig
 
 func main() {
@@ -82,7 +82,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 
 	//read server state on start
 	if (sc.FileStoragePath != "") && sc.RestoreMetrics {
-		err := storage.LoadState(sc.FileStoragePath)
+		err := stor.LoadState(sc.FileStoragePath)
 		if err != nil {
 			fmt.Printf("srv: failed to load server state from [%s], error: %s\n", sc.FileStoragePath, err)
 		}
@@ -127,7 +127,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 
 	//save server state on shutdown
 	if sc.FileStoragePath != "" {
-		err := storage.SaveState(sc.FileStoragePath)
+		err := stor.SaveState(sc.FileStoragePath)
 		if err != nil {
 			//fmt.Printf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
 			logger.Info(fmt.Sprintf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
@@ -154,7 +154,7 @@ func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
 		case now := <-ticker.C:
 			fmt.Printf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05"))
 
-			err := storage.SaveState(sc.FileStoragePath)
+			err := stor.SaveState(sc.FileStoragePath)
 			if err != nil {
 				fmt.Printf("srv-dumper: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
 			}

@@ -27,7 +27,7 @@ func requestMetricV1(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	val, ok := storage.Metrics[mr.Name]
+	val, ok := stor.Metrics[mr.Name]
 	if !ok {
 		http.Error(w, "Metric not found: "+mr.Name, http.StatusNotFound)
 		return
@@ -65,7 +65,7 @@ func requestMetricV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metric, ok := storage.Metrics[mr.Name]
+	metric, ok := stor.Metrics[mr.Name]
 	if !ok {
 		http.Error(w, "Metric not found: "+mr.Name, http.StatusNotFound)
 		return
