@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"internal/app"
 	"net/http"
 	"time"
 
@@ -13,6 +14,11 @@ import (
 // HTTP request processing
 func pingDBServer(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+	if sc.StorageMode != app.Database {
+		http.Error(w, "cannot ping DB connection: server does not run in Database mode", http.StatusBadRequest)
+		return
+	}
 
 	db, err := sql.Open("pgx", sc.DatabaseDSN)
 	if err != nil {
