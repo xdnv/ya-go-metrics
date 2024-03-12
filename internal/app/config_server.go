@@ -90,7 +90,6 @@ func InitServerConfig() ServerConfig {
 	//set main storage type for current session
 	if cf.DatabaseDSN != "" {
 		cf.StorageMode = Database
-
 	} else if cf.FileStoragePath != "" {
 		cf.StorageMode = File
 	} else {
