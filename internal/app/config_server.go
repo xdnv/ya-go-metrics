@@ -2,6 +2,7 @@ package app
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 )
@@ -15,10 +16,22 @@ const (
 	Database
 )
 
+func (t StorageType) String() string {
+	switch t {
+	case Memory:
+		return "Memory"
+	case File:
+		return "File"
+	case Database:
+		return "Database"
+	}
+	return fmt.Sprintf("Unknown (%d)", t)
+}
+
 type ServerConfig struct {
 	Endpoint                 string
 	StoreInterval            int64
-	StorageType              StorageType
+	StorageMode              StorageType
 	FileStoragePath          string
 	RestoreMetrics           bool
 	DatabaseDSN              string
@@ -36,7 +49,7 @@ func InitServerConfig() ServerConfig {
 
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port endpoint for server to listen")
 	flag.Int64Var(&cf.StoreInterval, "i", 300, "interval in seconds to store metrics in datafile, set 0 for synchronous output")
-	flag.StringVar(&cf.FileStoragePath, "d", "", "database DSN (format: 'host=<host> [port=port] user=<user> password=<xxxx> dbname=<mydb> sslmode=disable')")
+	flag.StringVar(&cf.DatabaseDSN, "d", "", "database DSN (format: 'host=<host> [port=port] user=<user> password=<xxxx> dbname=<mydb> sslmode=disable')")
 	flag.StringVar(&cf.FileStoragePath, "f", "/tmp/metrics-db.json", "full datafile path to store/load state of metrics. empty value shuts off metric dumps")
 	flag.BoolVar(&cf.RestoreMetrics, "r", true, "load metrics from datafile on server start, boolean")
 	flag.StringVar(&cf.LogLevel, "l", "info", "log level")
@@ -76,12 +89,12 @@ func InitServerConfig() ServerConfig {
 
 	//set main storage type for current session
 	if cf.DatabaseDSN != "" {
-		cf.StorageType = Database
+		cf.StorageMode = Database
 
 	} else if cf.FileStoragePath != "" {
-		cf.StorageType = File
+		cf.StorageMode = File
 	} else {
-		cf.StorageType = Memory
+		cf.StorageMode = Memory
 	}
 
 	return cf

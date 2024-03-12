@@ -110,7 +110,22 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	//sugar.Infof("srv: using endpoint %s", sc.Endpoint)
 	//sugar.Infof("srv: datafile %s", sc.FileStoragePath)
 	logger.Info(fmt.Sprintf("srv: using endpoint %s", sc.Endpoint))
-	logger.Info(fmt.Sprintf("srv: datafile %s", sc.FileStoragePath))
+
+	logger.Info(fmt.Sprintf("srv: storage mode %v", sc.StorageMode))
+
+	switch sc.StorageMode {
+	case app.Database:
+		//remove password from log output
+		var safeDSN = strings.Split(sc.DatabaseDSN, " ")
+		for i, v := range safeDSN {
+			if strings.Contains(v, "password=") {
+				safeDSN[i] = "password=***"
+			}
+		}
+		logger.Info(fmt.Sprintf("srv: DSN %s", strings.Join(safeDSN, " ")))
+	case app.File:
+		logger.Info(fmt.Sprintf("srv: datafile %s", sc.FileStoragePath))
+	}
 
 	//read server state on start
 	if (sc.FileStoragePath != "") && sc.RestoreMetrics {
