@@ -26,6 +26,10 @@ require internal/adapters/logger v1.0.0
 
 replace internal/adapters/logger => ./internal/adapters/logger
 
+require internal/app v1.0.0
+
+replace internal/app => ./internal/app
+
 require internal/domain v1.0.0
 
 replace internal/domain => ./internal/domain
@@ -34,9 +38,4 @@ require internal/ports/storage v1.0.0
 
 replace internal/ports/storage => ./internal/ports/storage
 
-require (
-	github.com/jackc/pgx/v5 v5.5.5
-	internal/app v1.0.0
-)
-
-replace internal/app => ./internal/app
+require github.com/jackc/pgx/v5 v5.5.5

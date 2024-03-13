@@ -75,7 +75,12 @@ func updateMetricV2(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	metric := stor.Metrics[mr.Name]
+	// metric := stor.Metrics[mr.Name]
+	metric, err := stor.GetMetric(mr.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	switch mr.Type {
 	case "gauge":

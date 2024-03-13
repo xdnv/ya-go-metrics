@@ -27,14 +27,19 @@ func requestMetricV1(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	val, ok := stor.Metrics[mr.Name]
-	if !ok {
-		http.Error(w, "Metric not found: "+mr.Name, http.StatusNotFound)
+	// val, ok := stor.Metrics[mr.Name]
+	// if !ok {
+	// 	http.Error(w, "Metric not found: "+mr.Name, http.StatusNotFound)
+	// 	return
+	// }
+	metric, err := stor.GetMetric(mr.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
 	//write metric value in plaintext
-	body := fmt.Sprintf("%v", val.GetValue())
+	body := fmt.Sprintf("%v", metric.GetValue())
 	_, _ = w.Write([]byte(body))
 
 	//w.WriteHeader(http.StatusOK)
@@ -65,9 +70,15 @@ func requestMetricV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metric, ok := stor.Metrics[mr.Name]
-	if !ok {
-		http.Error(w, "Metric not found: "+mr.Name, http.StatusNotFound)
+	// metric, ok := stor.Metrics[mr.Name]
+	// if !ok {
+	// 	http.Error(w, "Metric not found: "+mr.Name, http.StatusNotFound)
+	// 	return
+	// }
+
+	metric, err := stor.GetMetric(mr.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 

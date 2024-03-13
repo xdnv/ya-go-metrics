@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"internal/app"
-	"internal/ports/storage"
 
 	"internal/adapters/logger"
 
@@ -22,8 +22,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-var stor = storage.NewMemStorage()
 var sc app.ServerConfig
+
+// var stor = storage.NewMemStorage()
+var stor *UniStorage
 
 func handleGZIPRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -67,6 +69,17 @@ func main() {
 	//Warning! do not run outside function, it will break tests due to flag.Parse()
 	sc = app.InitServerConfig()
 
+	var db *sql.DB
+	if sc.StorageMode == app.Database {
+		db, err := sql.Open("pgx", sc.DatabaseDSN)
+		if err != nil {
+			panic(err)
+		}
+		defer db.Close()
+	}
+
+	stor = NewUniStorage(&sc, db)
+
 	// run `server` in it's own goroutine
 	wg.Add(1)
 	go server(ctx, &wg)
@@ -80,15 +93,18 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
-	fmt.Println("srv: received ^C - shutting down")
+	//fmt.Println("srv: received ^C - shutting down")
+	logger.Info("srv: received ^C - shutting down")
 
 	// tell the goroutines to stop
-	fmt.Println("srv: telling goroutines to stop")
+	//fmt.Println("srv: telling goroutines to stop")
+	logger.Info("srv: telling goroutines to stop")
 	cancel()
 
 	// and wait for them to reply back
 	wg.Wait()
-	fmt.Println("srv: shutdown")
+	//fmt.Println("srv: shutdown")
+	logger.Info("srv: shutdown")
 }
 
 func server(ctx context.Context, wg *sync.WaitGroup) {
@@ -128,10 +144,10 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	}
 
 	//read server state on start
-	if (sc.FileStoragePath != "") && sc.RestoreMetrics {
+	if sc.StorageMode == app.File && sc.RestoreMetrics {
 		err := stor.LoadState(sc.FileStoragePath)
 		if err != nil {
-			fmt.Printf("srv: failed to load server state from [%s], error: %s\n", sc.FileStoragePath, err)
+			logger.Error(fmt.Sprintf("srv: failed to load server state from [%s], error: %s\n", sc.FileStoragePath, err))
 		}
 	}
 
@@ -175,15 +191,15 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	srv.Shutdown(shutdownCtx)
 
 	//save server state on shutdown
-	if sc.FileStoragePath != "" {
+	if sc.StorageMode == app.File {
 		err := stor.SaveState(sc.FileStoragePath)
 		if err != nil {
 			//fmt.Printf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
-			logger.Info(fmt.Sprintf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
+			logger.Error(fmt.Sprintf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
 		}
 	}
 
-	fmt.Println("srv: server stopped")
+	logger.Info("srv: server stopped")
 }
 
 func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
