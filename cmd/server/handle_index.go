@@ -44,7 +44,8 @@ func index(w http.ResponseWriter, r *http.Request) {
 
 	htmlBody := fmt.Sprintf(indexTableHeaderTpl, "Metric", "Value")
 
-	for _, key := range storage.SortKeys(stor.GetMetrics()) {
+	metrics := stor.GetMetrics()
+	for _, key := range storage.SortKeys(metrics) {
 		metric, _ := stor.GetMetric(key)
 		htmlBody += fmt.Sprintf(indexTableRowTpl, key, metric.GetValue())
 	}

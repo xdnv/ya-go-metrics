@@ -64,6 +64,14 @@ func (t UniStorage) Ping() error {
 	}
 }
 
+func (t UniStorage) SetMetric(name string, metric storage.Metric) {
+	if t.config.StorageMode == app.Database {
+		//TODO: implement SQL logic
+	} else {
+		t.stor.SetMetric(name, metric)
+	}
+}
+
 func (t UniStorage) LoadState(path string) error {
 	if t.config.StorageMode == app.Database {
 		return nil
@@ -92,13 +100,21 @@ func (t UniStorage) GetMetric(metric string) (storage.Metric, error) {
 	}
 }
 
-func (t UniStorage) GetMetrics() storage.MetricMap {
+// Get a copy of Metric storage
+func (t UniStorage) GetMetrics() map[string]storage.Metric {
+
+	// Create the target map
+	targetMap := make(map[string]storage.Metric)
 
 	if t.config.StorageMode == app.Database {
-		return nil
+		//TODO: implement SQL logic
 	} else {
-		return t.stor.Metrics
+		// Copy from the original map to the target map
+		for key, value := range t.stor.Metrics {
+			targetMap[key] = value
+		}
 	}
+	return targetMap
 }
 
 func (t UniStorage) UpdateMetricS(mType string, mName string, mValue string) error {

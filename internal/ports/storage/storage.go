@@ -168,6 +168,11 @@ func (t MemStorage) GetSerializableStorage() ([]SerializableMetric, error) {
 	return sma, nil
 }
 
+// assign metric object to certain name. use with caution, TODO: replace with safer API
+func (t MemStorage) SetMetric(name string, metric Metric) {
+	t.Metrics[name] = metric
+}
+
 // Save server state
 func (t MemStorage) SaveState(fname string) error {
 
