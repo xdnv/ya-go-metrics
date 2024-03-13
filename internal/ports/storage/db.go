@@ -16,6 +16,10 @@ func NewDbStorage(conn *sql.DB) *DbStorage {
 	return &DbStorage{conn: conn}
 }
 
+func (t DbStorage) Close() {
+	t.conn.Close()
+}
+
 // // Check if table exists
 // func (t DbStorage) TableExists(ctx context.Context, tx *sql.Tx, tableName string) (bool, error) {
 // 	row := tx.QueryRowContext(ctx, `

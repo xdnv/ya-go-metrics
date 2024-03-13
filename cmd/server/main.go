@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"net/http"
@@ -69,16 +68,8 @@ func main() {
 	//Warning! do not run outside function, it will break tests due to flag.Parse()
 	sc = app.InitServerConfig()
 
-	var db *sql.DB
-	if sc.StorageMode == app.Database {
-		db, err := sql.Open("pgx", sc.DatabaseDSN)
-		if err != nil {
-			panic(err)
-		}
-		defer db.Close()
-	}
-
-	stor = NewUniStorage(&sc, db)
+	stor = NewUniStorage(&sc)
+	defer stor.Close()
 
 	// run `server` in it's own goroutine
 	wg.Add(1)

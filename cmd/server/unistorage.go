@@ -19,9 +19,21 @@ type UniStorage struct {
 }
 
 // init metric storage
-func NewUniStorage(cf *app.ServerConfig, conn *sql.DB) *UniStorage {
+func NewUniStorage(cf *app.ServerConfig) *UniStorage {
 
 	if cf.StorageMode == app.Database {
+		var (
+			conn *sql.DB
+			err  error
+		)
+		if sc.StorageMode == app.Database {
+			conn, err = sql.Open("pgx", sc.DatabaseDSN)
+			if err != nil {
+				panic(err)
+			}
+
+		}
+
 		return &UniStorage{
 			config: cf,
 			ctx:    context.Background(),
@@ -33,6 +45,12 @@ func NewUniStorage(cf *app.ServerConfig, conn *sql.DB) *UniStorage {
 			ctx:    context.Background(),
 			stor:   storage.NewMemStorage(),
 		}
+	}
+}
+
+func (t UniStorage) Close() {
+	if t.config.StorageMode == app.Database {
+		t.db.Close()
 	}
 }
 
