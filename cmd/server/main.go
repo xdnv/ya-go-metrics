@@ -165,7 +165,8 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	go func() {
 		// service connections
 		if err := srv.ListenAndServe(); err != nil {
-			fmt.Printf("Listen: %s\n", err)
+			//fmt.Printf("Listen: %s\n", err)
+			logger.Error(fmt.Sprintf("Listen: %s\n", err))
 			//log.Fatal(err)
 		}
 	}()
@@ -208,14 +209,17 @@ func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
 	for {
 		select {
 		case now := <-ticker.C:
-			fmt.Printf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05"))
+			//fmt.Printf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05"))
+			logger.Info(fmt.Sprintf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05")))
 
 			err := stor.SaveState(sc.FileStoragePath)
 			if err != nil {
-				fmt.Printf("srv-dumper: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+				//fmt.Printf("srv-dumper: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+				logger.Error(fmt.Sprintf("srv-dumper: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
 			}
 		case <-ctx.Done():
-			fmt.Println("srv-dumper: stop requested")
+			//fmt.Println("srv-dumper: stop requested")
+			logger.Info("srv-dumper: stop requested")
 			return
 		}
 	}
