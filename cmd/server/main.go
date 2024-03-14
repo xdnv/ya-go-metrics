@@ -199,7 +199,7 @@ func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	//save dump is disabled or set to immediate mode
-	if (sc.FileStoragePath == "") || (sc.StoreInterval == 0) {
+	if (sc.StorageMode != app.File) || (sc.StoreInterval == 0) {
 		return
 	}
 
