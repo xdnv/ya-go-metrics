@@ -35,27 +35,27 @@ type MemStorage struct {
 }
 
 func (t MemStorage) UpdateMetricS(mType string, mName string, mValue string) error {
-	var val Metric
+	var metric Metric
 	var ok bool
 
 	switch mType {
 	case "gauge":
-		val, ok = t.Metrics[mName].(*Gauge)
+		metric, ok = t.Metrics[mName].(*Gauge)
 		if !ok {
-			val = &Gauge{}
-			t.Metrics[mName] = val.(*Gauge)
+			metric = &Gauge{}
+			t.Metrics[mName] = metric.(*Gauge)
 		}
 	case "counter":
-		val, ok = t.Metrics[mName].(*Counter)
+		metric, ok = t.Metrics[mName].(*Counter)
 		if !ok {
-			val = &Counter{}
-			t.Metrics[mName] = val.(*Counter)
+			metric = &Counter{}
+			t.Metrics[mName] = metric.(*Counter)
 		}
 	default:
 		return fmt.Errorf("unexpected metric type: %s", mType)
 	}
 
-	err := val.UpdateValueS(mValue)
+	err := metric.UpdateValueS(mValue)
 	if err != nil {
 		return err
 	}

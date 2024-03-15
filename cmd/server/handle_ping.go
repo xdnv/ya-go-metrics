@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"internal/app"
 	"net/http"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // HTTP request processing
