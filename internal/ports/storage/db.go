@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -105,8 +104,6 @@ func (t DbStorage) Bootstrap(ctx context.Context) error {
 		ON CONFLICT (key)
 			DO UPDATE SET value = excluded.value;
 	`,
-		//sql.Named("tableName", tableName),
-		//sql.Named("dbkey", dbKey),
 		pgx.NamedArgs{
 			"dbKey":     dbKey,
 			"dbVersion": dbVersion,
@@ -143,11 +140,8 @@ func (t DbStorage) Bootstrap(ctx context.Context) error {
 	return tx.Commit()
 }
 
-func (t DbStorage) PingContext(ctx context.Context) error {
-
-	dbctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	return t.conn.PingContext(dbctx)
+func (t DbStorage) Ping(ctx context.Context) error {
+	return t.conn.PingContext(ctx)
 }
 
 // assign metric object to certain name. use with caution, TODO: replace with safer API
@@ -230,27 +224,7 @@ func (t DbStorage) UpdateMetricS(ctx context.Context, mType string, mName string
 
 func (t DbStorage) GetMetric(ctx context.Context, id string) (Metric, error) {
 
-	query := `
-		SELECT
-			'gauge' AS mtype,
-			id AS id,
-			value AS floatvalue,
-			NULL as intvalue
-		FROM
-			public.gauges
-		WHERE
-			id = @id
-		UNION ALL
-		SELECT
-			'counter' AS mtype,
-			id AS id,
-			NULL as floatvalue,
-			value AS intvalue
-		FROM
-			public.counters
-		WHERE
-			id = @id;
-	`
+	query := t.getMetricQuery(true)
 
 	row := t.conn.QueryRowContext(ctx, query,
 		pgx.NamedArgs{
@@ -287,4 +261,80 @@ func (t DbStorage) GetMetric(ctx context.Context, id string) (Metric, error) {
 	}
 
 	return metric, nil
+}
+
+// Get a copy of Metric storage
+func (t DbStorage) GetMetrics(ctx context.Context) (map[string]Metric, error) {
+
+	// Create the target map
+	targetMap := make(map[string]Metric)
+
+	query := t.getMetricQuery(false)
+
+	rows, err := t.conn.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("GetMetrics: unable to query metrics: %w", err)
+	}
+	defer rows.Close()
+
+	var (
+		mType       string
+		mId         string
+		mFloatValue sql.NullFloat64
+		mIntValue   sql.NullInt64
+	)
+
+	//users := []model.User{}
+
+	for rows.Next() {
+		var metric Metric
+
+		err := rows.Scan(&mType, &mId, &mFloatValue, &mIntValue)
+		if err != nil {
+			return nil, fmt.Errorf("unable to scan row: %w", err)
+		}
+
+		switch mType {
+		case "gauge":
+			metric = &Gauge{Value: mFloatValue.Float64}
+		case "counter":
+			metric = &Counter{Value: mIntValue.Int64}
+		default:
+			return nil, fmt.Errorf("unexpected metric type: %s", mType)
+		}
+
+		targetMap[mId] = metric
+	}
+
+	return targetMap, nil
+}
+
+// form query to extract all or specific metric from database
+func (t DbStorage) getMetricQuery(addFlter bool) string {
+	query := `
+		SELECT
+			'gauge' AS mtype,
+			id AS id,
+			value AS floatvalue,
+			NULL as intvalue
+		FROM
+			public.gauges%[1]s		
+		UNION ALL
+		SELECT
+			'counter' AS mtype,
+			id AS id,
+			NULL as floatvalue,
+			value AS intvalue
+		FROM
+			public.counters%[1]s;
+	`
+	replacement := ""
+
+	if addFlter {
+		replacement = `
+		WHERE
+			id = @id`
+	}
+
+	return fmt.Sprintf(query, replacement)
 }

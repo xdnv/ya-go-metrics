@@ -66,7 +66,7 @@ func (t UniStorage) Ping() error {
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
 		defer cancel()
-		return t.db.PingContext(dbctx)
+		return t.db.Ping(dbctx)
 	} else {
 		return nil
 	}
@@ -122,11 +122,20 @@ func (t UniStorage) GetMetrics() map[string]storage.Metric {
 
 	// Create the target map
 	targetMap := make(map[string]storage.Metric)
+	var err error
 
 	if t.config.StorageMode == app.Database {
-		//TODO: implement SQL logic
+		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
+		defer cancel()
+		targetMap, err = t.db.GetMetrics(dbctx)
+		if err != nil {
+			logger.Error(fmt.Sprintf("UniStorage.GetMetrics error: %s\n", err))
+			// return empty map
+			return make(map[string]storage.Metric)
+		}
+		return targetMap
 	} else {
-		// Copy from the original map to the target map
+		// Get copy of original map
 		for key, value := range t.stor.Metrics {
 			targetMap[key] = value
 		}
