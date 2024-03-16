@@ -14,6 +14,7 @@ type AgentConfig struct {
 	LogLevel       string
 	APIVersion     string
 	UseCompression bool
+	BulkUpdate     bool
 }
 
 func InitAgentConfig() AgentConfig {
@@ -23,6 +24,8 @@ func InitAgentConfig() AgentConfig {
 	cf.APIVersion = "v2"
 	//activate gzip compression
 	cf.UseCompression = true
+	//activate bulk JSON metric update
+	cf.BulkUpdate = true
 
 	//set defaults and read command line
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port server endpoint to send metric data")
