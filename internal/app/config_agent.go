@@ -8,13 +8,14 @@ import (
 
 // agent config storage
 type AgentConfig struct {
-	Endpoint       string
-	ReportInterval int64
-	PollInterval   int64
-	LogLevel       string
-	APIVersion     string
-	UseCompression bool
-	BulkUpdate     bool
+	Endpoint             string
+	ReportInterval       int64
+	PollInterval         int64
+	LogLevel             string
+	APIVersion           string
+	UseCompression       bool
+	BulkUpdate           bool
+	MaxConnectionRetries int
 }
 
 func InitAgentConfig() AgentConfig {
@@ -26,6 +27,8 @@ func InitAgentConfig() AgentConfig {
 	cf.UseCompression = true
 	//activate bulk JSON metric update
 	cf.BulkUpdate = true
+	//Connection retries for retriable functions (does not include original request. 0 to disable)
+	cf.MaxConnectionRetries = 3
 
 	//set defaults and read command line
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port server endpoint to send metric data")

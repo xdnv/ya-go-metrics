@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"internal/app"
 	"internal/domain"
@@ -64,6 +65,46 @@ func PostValueV2(ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error)
 	resp, err := http.DefaultClient.Do(r)
 
 	return resp, err
+}
+
+// uses current Post function to hedge unstable server connection
+func PostValueRetriable(ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error) {
+	attemptLimit := ac.MaxConnectionRetries + 1
+
+	for i := 1; i <= attemptLimit; i++ {
+
+		time.Sleep(backoffStrategy(i))
+
+		resp, err := PostValueV2(ac, body)
+		if err != nil {
+			fmt.Printf("retrier: [attempt#%d] error sending data: %v\n", i, err)
+		}
+
+		if resp != nil {
+			resp.Body.Close()
+		}
+
+		//Success
+		if err == nil && resp.StatusCode < 500 {
+			return resp, err
+		}
+	}
+
+	return nil, errors.New("retrier: all avaliable retries failed")
+}
+
+func backoffStrategy(attempt int) time.Duration {
+
+	switch attempt {
+	case 1:
+		return 0 * time.Second
+	case 2:
+		return 1 * time.Second
+	case 3:
+		return 3 * time.Second
+	default:
+		return 5 * time.Second
+	}
 }
 
 func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
@@ -253,7 +294,7 @@ func sendMetrics(ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error
 
 	fmt.Printf("TRACE: POST body %s\n", buf)
 
-	resp, err = PostValueV2(ac, buf)
+	resp, err = PostValueRetriable(ac, buf)
 
 	if err != nil {
 		fmt.Printf("ERROR bulk posting, %s\n", err)
