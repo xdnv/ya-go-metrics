@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"internal/app"
+	"internal/ports/storage"
 
 	"internal/adapters/logger"
 
@@ -24,7 +25,7 @@ import (
 var sc app.ServerConfig
 
 // var stor = storage.NewMemStorage()
-var stor *UniStorage
+var stor *storage.UniStorage
 
 func handleGZIPRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -68,7 +69,7 @@ func main() {
 	//Warning! do not run outside function, it will break tests due to flag.Parse()
 	sc = app.InitServerConfig()
 
-	stor = NewUniStorage(&sc)
+	stor = storage.NewUniStorage(&sc)
 	defer stor.Close()
 
 	//post-init unistorage actions

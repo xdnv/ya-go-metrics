@@ -35,7 +35,7 @@ func pingDBServer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body := "Ping OK"
-	_, _ = w.Write([]byte(body))
+	w.Write([]byte(body))
 
 	//w.WriteHeader(http.StatusOK)
 }

@@ -15,7 +15,7 @@ import (
 
 var _ = func() bool {
 	var testSc = app.ServerConfig{StorageMode: app.Memory}
-	stor = NewUniStorage(&testSc)
+	stor = storage.NewUniStorage(&testSc)
 	var tm = &storage.Gauge{Value: 4.5}
 	stor.SetMetric("main_test", tm)
 

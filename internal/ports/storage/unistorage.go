@@ -1,21 +1,21 @@
-package main
+package storage
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
+
 	"internal/adapters/logger"
 	"internal/app"
-	"internal/ports/storage"
-	"time"
 )
 
 // universal metric storage
 type UniStorage struct {
 	config  *app.ServerConfig
 	ctx     context.Context
-	stor    *storage.MemStorage
-	db      *storage.DbStorage
+	stor    *MemStorage
+	db      *DbStorage
 	timeout time.Duration
 }
 
@@ -28,7 +28,7 @@ func NewUniStorage(cf *app.ServerConfig) *UniStorage {
 			err  error
 		)
 
-		conn, err = sql.Open("pgx", sc.DatabaseDSN)
+		conn, err = sql.Open("pgx", cf.DatabaseDSN)
 		if err != nil {
 			logger.Fatal(err.Error())
 		}
@@ -36,14 +36,14 @@ func NewUniStorage(cf *app.ServerConfig) *UniStorage {
 		return &UniStorage{
 			config:  cf,
 			ctx:     context.Background(),
-			db:      storage.NewDbStorage(conn),
+			db:      NewDbStorage(conn),
 			timeout: 5 * time.Second,
 		}
 	} else {
 		return &UniStorage{
 			config: cf,
 			ctx:    context.Background(),
-			stor:   storage.NewMemStorage(),
+			stor:   NewMemStorage(),
 		}
 	}
 }
@@ -72,7 +72,7 @@ func (t UniStorage) Ping() error {
 	}
 }
 
-func (t UniStorage) SetMetric(name string, metric storage.Metric) {
+func (t UniStorage) SetMetric(name string, metric Metric) {
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
 		defer cancel()
@@ -103,7 +103,7 @@ func (t UniStorage) SaveState(path string) error {
 	}
 }
 
-func (t UniStorage) GetMetric(id string) (storage.Metric, error) {
+func (t UniStorage) GetMetric(id string) (Metric, error) {
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
 		defer cancel()
@@ -118,10 +118,10 @@ func (t UniStorage) GetMetric(id string) (storage.Metric, error) {
 }
 
 // Get a copy of Metric storage
-func (t UniStorage) GetMetrics() map[string]storage.Metric {
+func (t UniStorage) GetMetrics() map[string]Metric {
 
 	// Create the target map
-	targetMap := make(map[string]storage.Metric)
+	targetMap := make(map[string]Metric)
 	var err error
 
 	if t.config.StorageMode == app.Database {
@@ -131,7 +131,7 @@ func (t UniStorage) GetMetrics() map[string]storage.Metric {
 		if err != nil {
 			logger.Error(fmt.Sprintf("UniStorage.GetMetrics error: %s\n", err))
 			// return empty map
-			return make(map[string]storage.Metric)
+			return make(map[string]Metric)
 		}
 		return targetMap
 	} else {
