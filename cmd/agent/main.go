@@ -256,9 +256,9 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 	fmt.Printf("TRACE: POST body %s\n", buf)
 
 	backoff := func(ctx context.Context) error {
-		var err error
+		//var err error
 
-		bresp, err = PostValueV2(ctx, ac, buf)
+		bresp, err := PostValueV2(ctx, ac, buf)
 		if err != nil {
 			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
 			return retry.RetryableError(err)
