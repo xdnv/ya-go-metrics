@@ -244,7 +244,6 @@ func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics)
 
 func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error) {
 	var resp *http.Response
-	var postFunc = PostValueV2
 
 	jsonres, jsonerr := json.Marshal(ma)
 	if jsonerr != nil {
@@ -259,11 +258,12 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 	backoff := func(ctx context.Context) error {
 		var err error
 
-		resp, err = postFunc(ctx, ac, buf)
+		resp, err = PostValueV2(ctx, ac, buf)
 		if err != nil {
 			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
 			return retry.RetryableError(err)
 		}
+		resp.Body.Close()
 
 		return nil
 	}
