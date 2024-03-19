@@ -244,7 +244,6 @@ func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics)
 
 func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error) {
 	var resp *http.Response
-	var err error
 
 	jsonres, jsonerr := json.Marshal(ma)
 	if jsonerr != nil {
@@ -258,6 +257,8 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 
 	backoff := app.NewBackoff(uint64(ac.MaxConnectionRetries))
 	if berr := retry.Do(ctx, backoff, func(ctx context.Context) error {
+		var err error
+
 		resp, err = PostValueV2(ctx, ac, buf)
 
 		if err != nil {
@@ -267,14 +268,14 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 		return nil
 	}); berr != nil {
 		logger.Error(fmt.Sprintf("ERROR bulk posting, %s", berr))
-		return resp, berr
+		return nil, berr
 	}
 
 	if resp.StatusCode != 200 {
 		fmt.Println("response Status:", resp.Status)
 		fmt.Println("response Headers:", resp.Header)
 	}
-	return resp, err
+	return resp, nil
 }
 
 // global metric storage
