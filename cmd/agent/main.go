@@ -256,9 +256,10 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 	fmt.Printf("TRACE: POST body %s\n", buf)
 
 	backoff := func(ctx context.Context) error {
-		var err error
+		//var err error
 
-		resp, err = PostValueV2(ctx, ac, buf) //nolint:bodyclose //linter bug, https://github.com/timakin/bodyclose/issues/30
+		vresp, err := PostValueV2(ctx, ac, buf) //nolint:bodyclose //linter bug, https://github.com/timakin/bodyclose/issues/30
+		resp = vresp
 		if err != nil {
 			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
 			return retry.RetryableError(err)
