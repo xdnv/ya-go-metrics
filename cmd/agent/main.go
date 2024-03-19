@@ -255,8 +255,7 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 
 	fmt.Printf("TRACE: POST body %s\n", buf)
 
-	backoff := app.NewBackoff(uint64(ac.MaxConnectionRetries))
-	if berr := retry.Do(ctx, backoff, func(ctx context.Context) error {
+	backoff := func(ctx context.Context) error {
 		var err error
 
 		resp, err = PostValueV2(ctx, ac, buf)
@@ -266,9 +265,12 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 			return retry.RetryableError(err)
 		}
 		return nil
-	}); berr != nil {
-		logger.Error(fmt.Sprintf("ERROR bulk posting, %s", berr))
-		return nil, berr
+	}
+
+	err := app.DoRetry(ctx, ac.MaxConnectionRetries, backoff)
+	if err != nil {
+		logger.Error(fmt.Sprintf("ERROR bulk posting, %s", err))
+		return nil, err
 	}
 
 	if resp.StatusCode != 200 {

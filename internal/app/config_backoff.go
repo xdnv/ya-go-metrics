@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"time"
 
 	"github.com/sethvargo/go-retry"
@@ -37,15 +38,11 @@ func CustomExponential(t time.Duration, next retry.Backoff) retry.BackoffFunc {
 	}
 }
 
-// func DoRetry(ctx context.Context, retry.Backoff, func) error {
+func DoRetry(ctx context.Context, max uint64, f func(ctx context.Context) error) error {
 
-// 	err := retry.Do(ctx, backoff, func(ctx context.Context) error {
-// 		// Actual retry logic here
-// 		return nil
-// 	})
-
-// 	if err != nil {
-// 		// handle error
-// 	}
-// 	return err
-// }
+	backoff := NewBackoff(max)
+	if err := retry.Do(ctx, backoff, f); err != nil {
+		return err
+	}
+	return nil
+}
