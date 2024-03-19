@@ -76,8 +76,7 @@ func main() {
 	//post-init unistorage actions
 	err := stor.Bootstrap()
 	if err != nil {
-		logger.Error(fmt.Sprintf("srv: post-init bootstrap failed, error: %s\n", err))
-		return
+		logger.Fatal(fmt.Sprintf("srv: post-init bootstrap failed, error: %s\n", err))
 	}
 
 	// run `server` in it's own goroutine

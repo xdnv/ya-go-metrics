@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"internal/adapters/logger"
 	"time"
 
 	"github.com/sethvargo/go-retry"
@@ -43,6 +45,22 @@ func DoRetry(ctx context.Context, max uint64, f func(ctx context.Context) error)
 	backoff := NewBackoff(max)
 	if err := retry.Do(ctx, backoff, f); err != nil {
 		return err
+	}
+	return nil
+}
+
+func HandleRetriableWeb(err error, retryMessage string) error {
+	if err != nil {
+		logger.Error(fmt.Sprintf("%s, retry: %v", retryMessage, err))
+		return retry.RetryableError(err)
+	}
+	return nil
+}
+
+func HandleRetriableDB(err error, retryMessage string) error {
+	if err != nil {
+		logger.Error(fmt.Sprintf("%s, retry: %v", retryMessage, err))
+		return retry.RetryableError(err)
 	}
 	return nil
 }

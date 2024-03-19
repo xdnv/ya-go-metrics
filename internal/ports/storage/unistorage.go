@@ -66,7 +66,18 @@ func (t UniStorage) Ping() error {
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
 		defer cancel()
-		return t.db.Ping(dbctx)
+
+		errMsg := "UniStorage.Ping error"
+		backoff := func(ctx context.Context) error {
+			err := t.db.Ping(dbctx)
+			return app.HandleRetriableDB(err, errMsg)
+		}
+		err := app.DoRetry(dbctx, t.config.MaxConnectionRetries, backoff)
+		//return t.db.Ping(dbctx)
+		if err != nil {
+			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
+		}
+		return err
 	} else {
 		return nil
 	}
@@ -76,9 +87,16 @@ func (t UniStorage) SetMetric(name string, metric Metric) {
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
 		defer cancel()
-		err := t.db.SetMetric(dbctx, name, metric)
+
+		errMsg := "UniStorage.SetMetric error"
+		backoff := func(ctx context.Context) error {
+			err := t.db.SetMetric(dbctx, name, metric)
+			return app.HandleRetriableDB(err, errMsg)
+		}
+		err := app.DoRetry(dbctx, t.config.MaxConnectionRetries, backoff)
+		//err := t.db.SetMetric(dbctx, name, metric)
 		if err != nil {
-			logger.Error(fmt.Sprintf("UniStorage.SetMetric error: %s\n", err))
+			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
 		}
 	} else {
 		t.stor.SetMetric(name, metric)
@@ -107,7 +125,21 @@ func (t UniStorage) GetMetric(id string) (Metric, error) {
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
 		defer cancel()
-		return t.db.GetMetric(dbctx, id)
+		var metric Metric
+
+		errMsg := "UniStorage.GetMetric error"
+		backoff := func(ctx context.Context) error {
+			var err error
+			metric, err = t.db.GetMetric(dbctx, id)
+			return app.HandleRetriableDB(err, errMsg)
+		}
+		err := app.DoRetry(dbctx, t.config.MaxConnectionRetries, backoff)
+		//return t.db.GetMetric(dbctx, id)
+		if err != nil {
+			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
+			return nil, err
+		}
+		return metric, err
 	} else {
 		val, ok := t.stor.Metrics[id]
 		if !ok {
@@ -122,14 +154,21 @@ func (t UniStorage) GetMetrics() map[string]Metric {
 
 	// Create the target map
 	targetMap := make(map[string]Metric)
-	var err error
 
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
 		defer cancel()
-		targetMap, err = t.db.GetMetrics(dbctx)
+
+		errMsg := "UniStorage.GetMetrics error"
+		backoff := func(ctx context.Context) error {
+			var err error
+			targetMap, err = t.db.GetMetrics(dbctx)
+			return app.HandleRetriableDB(err, errMsg)
+		}
+		err := app.DoRetry(dbctx, t.config.MaxConnectionRetries, backoff)
+		//targetMap, err = t.db.GetMetrics(dbctx) //original w/o retries
 		if err != nil {
-			logger.Error(fmt.Sprintf("UniStorage.GetMetrics error: %s\n", err))
+			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
 			// return empty map
 			return make(map[string]Metric)
 		}

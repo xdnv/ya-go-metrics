@@ -16,8 +16,6 @@ import (
 	"runtime"
 	"sync"
 	"time"
-
-	"github.com/sethvargo/go-retry"
 )
 
 var ac app.AgentConfig
@@ -260,13 +258,11 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 
 		bresp, err := PostValueV2(ctx, ac, buf)
 		resp = bresp //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
-		if err != nil {
-			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
-			return retry.RetryableError(err)
+		if err == nil {
+			bresp.Body.Close() //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
 		}
-		bresp.Body.Close() //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
 
-		return nil
+		return app.HandleRetriableWeb(err, "error sending data")
 	}
 
 	err := app.DoRetry(ctx, ac.MaxConnectionRetries, backoff)
