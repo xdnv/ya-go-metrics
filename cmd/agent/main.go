@@ -261,7 +261,6 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 		resp, err = PostValueV2(ctx, ac, buf)
 
 		if err != nil {
-			// This marks the error as retryable
 			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
 			return retry.RetryableError(err)
 		}

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -131,13 +132,20 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	switch sc.StorageMode {
 	case app.Database:
 		//remove password from log output
-		var safeDSN = strings.Split(sc.DatabaseDSN, " ")
-		for i, v := range safeDSN {
-			if strings.Contains(v, "password=") {
-				safeDSN[i] = "password=***"
-			}
-		}
-		logger.Info(fmt.Sprintf("srv: DSN %s", strings.Join(safeDSN, " ")))
+		// //old mode
+		// var safeDSN = strings.Split(sc.DatabaseDSN, " ")
+		// for i, v := range safeDSN {
+		// 	if strings.Contains(v, "password=") {
+		// 		safeDSN[i] = "password=***"
+		// 	}
+		// }
+		// logger.Info(fmt.Sprintf("srv: DSN %s", strings.Join(safeDSN, " ")))
+
+		//nu mode
+		re := regexp.MustCompile(`(password)=(?P<password>\S*)`)
+		s := re.ReplaceAllLiteralString(sc.DatabaseDSN, "password=***")
+		logger.Info(fmt.Sprintf("srv: DSN %s", s))
+
 	case app.File:
 		logger.Info(fmt.Sprintf("srv: datafile %s", sc.FileStoragePath))
 	}
