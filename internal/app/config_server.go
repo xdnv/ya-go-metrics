@@ -37,6 +37,7 @@ type ServerConfig struct {
 	DatabaseDSN              string
 	LogLevel                 string
 	CompressibleContentTypes []string
+	MaxConnectionRetries     uint64
 }
 
 func InitServerConfig() ServerConfig {

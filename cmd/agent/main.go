@@ -5,8 +5,8 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"internal/adapters/logger"
 	"internal/app"
 	"internal/domain"
 	"math/rand"
@@ -16,11 +16,13 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/sethvargo/go-retry"
 )
 
 var ac app.AgentConfig
 
-func PostValueV1(ac app.AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
+func PostValueV1(ctx context.Context, ac app.AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
 	address := fmt.Sprintf("http://%s/update/%s/%s/%s", ac.Endpoint, counterType, counterName, value)
 	resp, err := http.Post(address, "text/plain", nil)
 	if err != nil {
@@ -29,7 +31,7 @@ func PostValueV1(ac app.AgentConfig, counterType string, counterName string, val
 	return resp, nil
 }
 
-func PostValueV2(ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error) {
+func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error) {
 	contentType := "application/json"
 
 	address := fmt.Sprintf("http://%s/updates/", ac.Endpoint)
@@ -65,46 +67,6 @@ func PostValueV2(ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error)
 	resp, err := http.DefaultClient.Do(r)
 
 	return resp, err
-}
-
-// uses current Post function to hedge unstable server connection
-func PostValueRetriable(ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error) {
-	attemptLimit := ac.MaxConnectionRetries + 1
-
-	for i := 1; i <= attemptLimit; i++ {
-
-		time.Sleep(backoffStrategy(i))
-
-		resp, err := PostValueV2(ac, body)
-		if err != nil {
-			fmt.Printf("retrier: [attempt#%d] error sending data: %v\n", i, err)
-		}
-
-		if resp != nil {
-			resp.Body.Close()
-		}
-
-		//Success
-		if err == nil && resp.StatusCode < 500 {
-			return resp, err
-		}
-	}
-
-	return nil, errors.New("retrier: all avaliable retries failed")
-}
-
-func backoffStrategy(attempt int) time.Duration {
-
-	switch attempt {
-	case 1:
-		return 0 * time.Second
-	case 2:
-		return 1 * time.Second
-	case 3:
-		return 3 * time.Second
-	default:
-		return 5 * time.Second
-	}
 }
 
 func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
@@ -179,7 +141,7 @@ func reporter(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 		select {
 		case now := <-ticker.C:
 			fmt.Printf("TRACE: send metrics [%s]\n", now.Format("2006-01-02 15:04:05"))
-			sendPayload(ac, ms)
+			sendPayload(ctx, ac, ms)
 		case <-ctx.Done():
 			fmt.Println("agent-reporter: stop requested")
 			return
@@ -187,7 +149,7 @@ func reporter(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 	}
 }
 
-func sendPayload(ac app.AgentConfig, m *domain.MetricStorage) {
+func sendPayload(ctx context.Context, ac app.AgentConfig, m *domain.MetricStorage) {
 	m.RLock()
 	defer m.RUnlock()
 
@@ -208,7 +170,7 @@ func sendPayload(ac app.AgentConfig, m *domain.MetricStorage) {
 	}
 
 	if ac.BulkUpdate {
-		resp, err := sendMetrics(ac, ma)
+		resp, err := sendMetrics(ctx, ac, ma)
 		if err == nil {
 			resp.Body.Close()
 			//reset counter after successful transefer
@@ -223,7 +185,7 @@ func sendPayload(ac app.AgentConfig, m *domain.MetricStorage) {
 		for k := range ma {
 			metric := ma[k]
 
-			resp, err := sendMetric(ac, &metric)
+			resp, err := sendMetric(ctx, ac, &metric)
 			if err == nil {
 				resp.Body.Close()
 				//reset counter after successful transefer
@@ -235,7 +197,7 @@ func sendPayload(ac app.AgentConfig, m *domain.MetricStorage) {
 	}
 }
 
-func sendMetric(ac app.AgentConfig, metric *domain.Metrics) (*http.Response, error) {
+func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics) (*http.Response, error) {
 	var resp *http.Response
 	var err error
 
@@ -252,7 +214,7 @@ func sendMetric(ac app.AgentConfig, metric *domain.Metrics) (*http.Response, err
 			fmt.Printf("ERROR: unsupported metric type [%s]\n", metric.MType)
 		}
 
-		resp, err = PostValueV1(ac, metric.MType, metric.ID, vs)
+		resp, err = PostValueV1(ctx, ac, metric.MType, metric.ID, vs)
 	case "v2":
 		jsonres, jsonerr := json.Marshal(metric)
 		if jsonerr != nil {
@@ -264,7 +226,7 @@ func sendMetric(ac app.AgentConfig, metric *domain.Metrics) (*http.Response, err
 
 		fmt.Printf("TRACE: POST body %s\n", buf)
 
-		resp, err = PostValueV2(ac, buf)
+		resp, err = PostValueV2(ctx, ac, buf)
 	default:
 		fmt.Printf("ERROR: unsupported API version %s", ac.APIVersion)
 	}
@@ -280,13 +242,13 @@ func sendMetric(ac app.AgentConfig, metric *domain.Metrics) (*http.Response, err
 	return resp, err
 }
 
-func sendMetrics(ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error) {
+func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error) {
 	var resp *http.Response
 	var err error
 
 	jsonres, jsonerr := json.Marshal(ma)
 	if jsonerr != nil {
-		fmt.Printf("ERROR: JSON marshaling failed [%s]\n", jsonerr)
+		logger.Error(fmt.Sprintf("ERROR: JSON marshaling failed [%s]", jsonerr))
 		return nil, jsonerr
 	}
 
@@ -294,12 +256,21 @@ func sendMetrics(ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error
 
 	fmt.Printf("TRACE: POST body %s\n", buf)
 
-	resp, err = PostValueRetriable(ac, buf)
+	backoff := app.NewBackoff(uint64(ac.MaxConnectionRetries))
+	if berr := retry.Do(ctx, backoff, func(ctx context.Context) error {
+		resp, err = PostValueV2(ctx, ac, buf)
 
-	if err != nil {
-		fmt.Printf("ERROR bulk posting, %s\n", err)
-		return nil, err
+		if err != nil {
+			// This marks the error as retryable
+			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
+			return retry.RetryableError(err)
+		}
+		return nil
+	}); berr != nil {
+		logger.Error(fmt.Sprintf("ERROR bulk posting, %s", berr))
+		return resp, berr
 	}
+
 	if resp.StatusCode != 200 {
 		fmt.Println("response Status:", resp.Status)
 		fmt.Println("response Headers:", resp.Header)

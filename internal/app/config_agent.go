@@ -15,7 +15,7 @@ type AgentConfig struct {
 	APIVersion           string
 	UseCompression       bool
 	BulkUpdate           bool
-	MaxConnectionRetries int
+	MaxConnectionRetries uint64
 }
 
 func InitAgentConfig() AgentConfig {
