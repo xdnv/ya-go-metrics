@@ -1,7 +1,4 @@
-//nolint:bodyclose
 package main
-
-// disable bodyclose false positive for inline function like in https://github.com/timakin/bodyclose/issues/30
 
 import (
 	"bytes"
@@ -261,7 +258,7 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 	backoff := func(ctx context.Context) error {
 		var err error
 
-		resp, err = PostValueV2(ctx, ac, buf)
+		resp, err = PostValueV2(ctx, ac, buf) //nolint:bodyclose //linter bug, https://github.com/timakin/bodyclose/issues/30
 		if err != nil {
 			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
 			return retry.RetryableError(err)
