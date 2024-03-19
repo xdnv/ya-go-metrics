@@ -259,11 +259,12 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 		var err error
 
 		resp, err = PostValueV2(ctx, ac, buf)
-
 		if err != nil {
 			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
 			return retry.RetryableError(err)
 		}
+		defer resp.Body.Close() //otherwise static check will fail
+
 		return nil
 	}
 
