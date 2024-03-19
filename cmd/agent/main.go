@@ -1,4 +1,7 @@
+//nolint:bodyclose
 package main
+
+// disable bodyclose false positive for inline function like in https://github.com/timakin/bodyclose/issues/30
 
 import (
 	"bytes"
@@ -242,9 +245,6 @@ func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics)
 	return resp, err
 }
 
-// disable bodyclose false positive for inline function like in https://github.com/timakin/bodyclose/issues/30
-//
-//nolint:bodyclose
 func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error) {
 	var resp *http.Response
 
