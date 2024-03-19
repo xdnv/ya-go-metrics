@@ -1,3 +1,4 @@
+//nolint:bodyclose
 package main
 
 import (
@@ -258,7 +259,7 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 	backoff := func(ctx context.Context) error {
 		var err error
 
-		// The body is handled by the consumer of the fresult
+		// The body is handled by the consumer of the function
 		//nolint:bodyclose
 		resp, err = PostValueV2(ctx, ac, buf)
 		if err != nil {
