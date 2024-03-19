@@ -242,7 +242,7 @@ func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics)
 	return resp, err
 }
 
-//nolint:bodycheck
+//nolint:all
 func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error) {
 	var resp *http.Response
 
@@ -256,11 +256,11 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 
 	fmt.Printf("TRACE: POST body %s\n", buf)
 
-	//nolint
+	//nolint:all
 	backoff := func(ctx context.Context) error {
 		var err error
 
-		resp, err = PostValueV2(ctx, ac, buf) //nolint
+		resp, err = PostValueV2(ctx, ac, buf) //nolint:all
 		if err != nil {
 			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
 			return retry.RetryableError(err)
