@@ -264,7 +264,7 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
 			return retry.RetryableError(err)
 		}
-		bresp.Body.Close()
+		//bresp.Body.Close()
 
 		return nil
 	}
