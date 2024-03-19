@@ -259,9 +259,8 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 	backoff := func(ctx context.Context) error {
 		var err error
 
-		// The body is handled by the consumer of the function
 		//nolint:bodyclose
-		resp, err = PostValueV2(ctx, ac, buf)
+		resp, err = PostValueV2(ctx, ac, buf) //nolint:bodyclose
 		if err != nil {
 			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
 			return retry.RetryableError(err)
