@@ -6,6 +6,7 @@ import (
 	"internal/app"
 	"internal/domain"
 	"net/http"
+	"strings"
 )
 
 // HTTP update processing
@@ -13,6 +14,7 @@ func updateMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var m []domain.Metrics
+	var errs []error
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 		fmt.Printf("DECODE ERROR: %s", err.Error())
@@ -31,16 +33,29 @@ func updateMetrics(w http.ResponseWriter, r *http.Request) {
 		case "counter":
 			mr.Value = fmt.Sprint(*v.Delta)
 		default:
-			http.Error(w, fmt.Sprintf("ERROR: unsupported metric type %s", mr.Type), http.StatusNotFound)
+			err := fmt.Errorf("ERROR: unsupported metric type %s", mr.Type)
+			errs = append(errs, err)
+			//http.Error(w, fmt.Sprintf("ERROR: unsupported metric type %s", mr.Type), http.StatusNotFound)
+			continue
 		}
 
 		err := stor.UpdateMetricS(mr.Type, mr.Name, mr.Value)
 		if err != nil {
 			fmt.Printf("UPDATE ERROR: %s", err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			errs = append(errs, err)
+			continue
+		}
+	}
+
+	//handling all errors encountered
+	if len(errs) > 0 {
+		strErrors := make([]string, len(errs))
+		for i, err := range errs {
+			strErrors[i] = err.Error()
 		}
 
+		http.Error(w, "Errors: \n"+strings.Join(strErrors, "\n"), http.StatusBadRequest)
+		return
 	}
 
 	//save dump if set to immediate mode
