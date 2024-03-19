@@ -256,14 +256,16 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 	fmt.Printf("TRACE: POST body %s\n", buf)
 
 	backoff := func(ctx context.Context) error {
-		var err error
+		//var err error
 
-		resp, err = PostValueV2(ctx, ac, buf)
+		//handle linter bug, does see body closure. set //nolint:bodyerror in prod environment
+		bresp, err := PostValueV2(ctx, ac, buf)
+		resp = bresp
 		if err != nil {
 			logger.Error(fmt.Sprintf("error sending data, retry: %v", err))
 			return retry.RetryableError(err)
 		}
-		resp.Body.Close()
+		bresp.Body.Close()
 
 		return nil
 	}
