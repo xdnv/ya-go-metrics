@@ -242,7 +242,7 @@ func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics)
 	return resp, err
 }
 
-// nolint
+//nolint:bodycheck
 func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error) {
 	var resp *http.Response
 
