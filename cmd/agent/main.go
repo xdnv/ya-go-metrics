@@ -244,7 +244,7 @@ func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics)
 
 func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error) {
 	var resp *http.Response
-	var postFunc func(context.Context, app.AgentConfig, *bytes.Buffer) (*http.Response, error) = PostValueV2
+	var postFunc = PostValueV2
 
 	jsonres, jsonerr := json.Marshal(ma)
 	if jsonerr != nil {
