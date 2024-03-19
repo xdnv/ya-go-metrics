@@ -273,6 +273,7 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 		logger.Error(fmt.Sprintf("ERROR bulk posting, %s", err))
 		return nil, err
 	}
+	defer resp.Body.Close() //otherwise static check will fail
 
 	if resp.StatusCode != 200 {
 		fmt.Println("response Status:", resp.Status)
