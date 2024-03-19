@@ -2,10 +2,13 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"internal/adapters/logger"
 	"time"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/sethvargo/go-retry"
 )
 
@@ -59,8 +62,17 @@ func HandleRetriableWeb(err error, retryMessage string) error {
 
 func HandleRetriableDB(err error, retryMessage string) error {
 	if err != nil {
-		logger.Error(fmt.Sprintf("%s, retry: %v", retryMessage, err))
-		return retry.RetryableError(err)
+
+		var pgErr *pgconn.PgError
+		//if errors.As(err, &pgErr) && pgerrcode.IsInvalidCatalogName(pgErr.Code) { ////debug line with wrong database name
+		if errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
+			logger.Error(fmt.Sprintf("%s, retry: %v", retryMessage, err))
+			return retry.RetryableError(err)
+		} else {
+			logger.Error(fmt.Sprintf("%s, FATAL: %v", retryMessage, err))
+			return err
+		}
+
 	}
 	return nil
 }
