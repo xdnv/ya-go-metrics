@@ -24,3 +24,7 @@ replace internal/adapters/logger => ../../adapters/logger
 require internal/app v1.0.0
 
 replace internal/app => ../../app
+
+require internal/domain v1.0.0
+
+replace internal/domain => ../../domain

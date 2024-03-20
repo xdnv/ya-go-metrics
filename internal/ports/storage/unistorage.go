@@ -8,6 +8,7 @@ import (
 
 	"internal/adapters/logger"
 	"internal/app"
+	"internal/domain"
 )
 
 // universal metric storage
@@ -186,8 +187,45 @@ func (t UniStorage) UpdateMetricS(mType string, mName string, mValue string) err
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
 		defer cancel()
-		return t.db.UpdateMetricS(dbctx, mType, mName, mValue)
+
+		errMsg := "UniStorage.UpdateMetricS error"
+		backoff := func(ctx context.Context) error {
+			err := t.db.UpdateMetricS(dbctx, mType, mName, mValue)
+			return app.HandleRetriableDB(err, errMsg)
+		}
+		err := app.DoRetry(dbctx, t.config.MaxConnectionRetries, backoff)
+		//return t.db.UpdateMetricS(dbctx, mType, mName, mValue)
+		if err != nil {
+			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
+		}
+		return err
 	} else {
 		return t.stor.UpdateMetricS(mType, mName, mValue)
+	}
+}
+
+func (t UniStorage) BatchUpdateMetrics(m *[]domain.Metrics, errs *[]error) *[]domain.Metrics {
+	if t.config.StorageMode == app.Database {
+		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
+		defer cancel()
+
+		var mr *[]domain.Metrics
+
+		errMsg := "UniStorage.UpdateMetricS error"
+		backoff := func(ctx context.Context) error {
+			var err error
+			mr, err = t.db.BatchUpdateMetrics(dbctx, m, errs)
+			return app.HandleRetriableDB(err, errMsg)
+		}
+		err := app.DoRetry(dbctx, t.config.MaxConnectionRetries, backoff)
+		//return t.db.BatchUpdateMetrics(dbctx, m)
+		if err != nil {
+			*errs = append(*errs, err)
+			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
+		}
+
+		return mr
+	} else {
+		return t.stor.BatchUpdateMetrics(m, errs)
 	}
 }

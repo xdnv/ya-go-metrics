@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"internal/domain"
 	"os"
 	"strconv"
 )
@@ -61,6 +62,36 @@ func (t MemStorage) UpdateMetricS(mType string, mName string, mValue string) err
 	}
 
 	return nil
+}
+
+func (t MemStorage) BatchUpdateMetrics(m *[]domain.Metrics, errs *[]error) *[]domain.Metrics {
+
+	for _, v := range *m {
+		mr := new(domain.MetricRequest)
+		mr.Type = v.MType
+		mr.Name = v.ID
+
+		switch mr.Type {
+		case "gauge":
+			mr.Value = fmt.Sprint(*v.Value)
+		case "counter":
+			mr.Value = fmt.Sprint(*v.Delta)
+		default:
+			err := fmt.Errorf("ERROR: unsupported metric type %s", mr.Type)
+			*errs = append(*errs, err)
+			//http.Error(w, fmt.Sprintf("ERROR: unsupported metric type %s", mr.Type), http.StatusNotFound)
+			continue
+		}
+
+		err := t.UpdateMetricS(mr.Type, mr.Name, mr.Value)
+		if err != nil {
+			fmt.Printf("UPDATE ERROR: %s", err.Error())
+			*errs = append(*errs, err)
+			continue
+		}
+	}
+
+	return m
 }
 
 // Gauge - float64

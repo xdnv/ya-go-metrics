@@ -22,30 +22,7 @@ func updateMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, v := range m {
-		mr := new(domain.MetricRequest)
-		mr.Type = v.MType
-		mr.Name = v.ID
-
-		switch mr.Type {
-		case "gauge":
-			mr.Value = fmt.Sprint(*v.Value)
-		case "counter":
-			mr.Value = fmt.Sprint(*v.Delta)
-		default:
-			err := fmt.Errorf("ERROR: unsupported metric type %s", mr.Type)
-			errs = append(errs, err)
-			//http.Error(w, fmt.Sprintf("ERROR: unsupported metric type %s", mr.Type), http.StatusNotFound)
-			continue
-		}
-
-		err := stor.UpdateMetricS(mr.Type, mr.Name, mr.Value)
-		if err != nil {
-			fmt.Printf("UPDATE ERROR: %s", err.Error())
-			errs = append(errs, err)
-			continue
-		}
-	}
+	mr := stor.BatchUpdateMetrics(&m, &errs)
 
 	//handling all errors encountered
 	if len(errs) > 0 {
@@ -81,7 +58,7 @@ func updateMetrics(w http.ResponseWriter, r *http.Request) {
 	// 	m.Delta = &metricValue
 	// }
 
-	resp, err := json.Marshal(m)
+	resp, err := json.Marshal(mr)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

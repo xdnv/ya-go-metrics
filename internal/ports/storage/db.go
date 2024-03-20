@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"internal/domain"
 	"strconv"
 
 	"github.com/jackc/pgx/v5"
@@ -220,6 +221,79 @@ func (t DbStorage) UpdateMetricS(ctx context.Context, mType string, mName string
 	)
 
 	return err
+}
+
+func (t DbStorage) UpdateMetricTransact(ctx context.Context, tx *sql.Tx, mType string, mName string, mValue interface{}) error {
+
+	var val interface{}
+	var err error
+	query := ""
+
+	switch mType {
+	case "gauge":
+		val = *mValue.(*float64)
+		query = `
+		INSERT INTO public.gauges (id, value)
+			VALUES (@id::text, @value::double precision)
+		ON CONFLICT (id)
+			DO UPDATE SET value = excluded.value;
+	`
+	case "counter":
+		val = *mValue.(*int64)
+		query = `
+		INSERT INTO public.counters (id, value)
+			VALUES (@id::text, @value::bigint)
+		ON CONFLICT (id)
+			DO UPDATE SET value = public.counters.value + excluded.value;
+	`
+	default:
+		return fmt.Errorf("unexpected metric type: %s", mType)
+	}
+
+	_, err = tx.ExecContext(ctx, query,
+		pgx.NamedArgs{
+			"id":    mName,
+			"value": val,
+		},
+	)
+
+	return err
+}
+
+func (t DbStorage) BatchUpdateMetrics(ctx context.Context, m *[]domain.Metrics, errs *[]error) (*[]domain.Metrics, error) {
+
+	// begin transaction
+	tx, err := t.conn.BeginTx(ctx, nil)
+	if err != nil {
+		*errs = append(*errs, err)
+		return m, err
+	}
+	defer tx.Rollback()
+
+	for _, v := range *m {
+		mType := v.MType
+
+		switch mType {
+		case "gauge":
+			err := t.UpdateMetricTransact(ctx, tx, mType, v.ID, v.Value)
+			if err != nil {
+				*errs = append(*errs, err)
+			}
+		case "counter":
+			err := t.UpdateMetricTransact(ctx, tx, mType, v.ID, v.Delta)
+			if err != nil {
+				*errs = append(*errs, err)
+			}
+		default:
+			err := fmt.Errorf("ERROR: unsupported metric type %s", mType)
+			*errs = append(*errs, err)
+			continue
+		}
+	}
+
+	// commit transaction
+	err = tx.Commit()
+	return m, err
 }
 
 func (t DbStorage) GetMetric(ctx context.Context, id string) (Metric, error) {
