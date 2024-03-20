@@ -16,6 +16,8 @@ type AgentConfig struct {
 	UseCompression       bool
 	BulkUpdate           bool
 	MaxConnectionRetries uint64
+	UseSignedMessaging   bool
+	MsgKey               string
 }
 
 func InitAgentConfig() AgentConfig {
@@ -34,6 +36,7 @@ func InitAgentConfig() AgentConfig {
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port server endpoint to send metric data")
 	flag.Int64Var(&cf.PollInterval, "p", 2, "metric poll interval in seconds")
 	flag.Int64Var(&cf.ReportInterval, "r", 10, "metric reporting frequency in seconds")
+	flag.StringVar(&cf.MsgKey, "k", "", "key to use signed messaging, empty value disables signing")
 	flag.StringVar(&cf.LogLevel, "l", "info", "log level")
 	flag.Parse()
 
@@ -53,6 +56,9 @@ func InitAgentConfig() AgentConfig {
 			cf.ReportInterval = intval
 		}
 	}
+	if val, found := os.LookupEnv("KEY"); found {
+		cf.MsgKey = val
+	}
 	if val, found := os.LookupEnv("LOG_LEVEL"); found {
 		cf.LogLevel = val
 	}
@@ -69,6 +75,9 @@ func InitAgentConfig() AgentConfig {
 	if cf.LogLevel == "" {
 		panic("PANIC: log level is not set")
 	}
+
+	//set signing mode
+	cf.UseSignedMessaging = (cf.MsgKey != "")
 
 	return cf
 }

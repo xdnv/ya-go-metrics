@@ -38,6 +38,8 @@ type ServerConfig struct {
 	LogLevel                 string
 	CompressibleContentTypes []string
 	MaxConnectionRetries     uint64
+	UseSignedMessaging       bool
+	MsgKey                   string
 }
 
 func InitServerConfig() ServerConfig {
@@ -51,6 +53,7 @@ func InitServerConfig() ServerConfig {
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port endpoint for server to listen")
 	flag.Int64Var(&cf.StoreInterval, "i", 300, "interval in seconds to store metrics in datafile, set 0 for synchronous output")
 	flag.StringVar(&cf.DatabaseDSN, "d", "", "database DSN (format: 'host=<host> [port=port] user=<user> password=<xxxx> dbname=<mydb> sslmode=disable')")
+	flag.StringVar(&cf.MsgKey, "k", "", "key to use signed messaging, empty value disables signing")
 	flag.StringVar(&cf.FileStoragePath, "f", "/tmp/metrics-db.json", "full datafile path to store/load state of metrics. empty value shuts off metric dumps")
 	flag.BoolVar(&cf.RestoreMetrics, "r", true, "load metrics from datafile on server start, boolean")
 	flag.StringVar(&cf.LogLevel, "l", "info", "log level")
@@ -77,6 +80,9 @@ func InitServerConfig() ServerConfig {
 	if val, found := os.LookupEnv("DATABASE_DSN"); found {
 		cf.DatabaseDSN = val
 	}
+	if val, found := os.LookupEnv("KEY"); found {
+		cf.MsgKey = val
+	}
 	if val, found := os.LookupEnv("LOG_LEVEL"); found {
 		cf.LogLevel = val
 	}
@@ -96,6 +102,9 @@ func InitServerConfig() ServerConfig {
 	} else {
 		cf.StorageMode = Memory
 	}
+
+	//set signing mode
+	cf.UseSignedMessaging = (cf.MsgKey != "")
 
 	return cf
 }
