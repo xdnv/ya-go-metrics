@@ -11,6 +11,7 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
@@ -18,6 +19,10 @@ require (
 require internal/adapters/logger v1.0.0
 
 replace internal/adapters/logger => ./internal/adapters/logger
+
+require internal/app v1.0.0
+
+replace internal/app => ./internal/app
 
 require internal/domain v1.0.0
 
@@ -27,6 +32,14 @@ require internal/ports/storage v1.0.0
 
 replace internal/ports/storage => ./internal/ports/storage
 
-require internal/app v1.0.0
-
-replace internal/app => ./internal/app
+require (
+	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+	github.com/jackc/pgx/v5 v5.5.5 // indirect
+	github.com/jackc/puddle/v2 v2.2.1 // indirect
+	github.com/sethvargo/go-retry v0.2.4 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
+	golang.org/x/sync v0.1.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
+)

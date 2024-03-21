@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
+	"internal/domain"
 	"os"
 	"strconv"
 )
@@ -35,32 +36,62 @@ type MemStorage struct {
 }
 
 func (t MemStorage) UpdateMetricS(mType string, mName string, mValue string) error {
-	var val Metric
+	var metric Metric
 	var ok bool
 
 	switch mType {
 	case "gauge":
-		val, ok = t.Metrics[mName].(*Gauge)
+		metric, ok = t.Metrics[mName].(*Gauge)
 		if !ok {
-			val = &Gauge{}
-			t.Metrics[mName] = val.(*Gauge)
+			metric = &Gauge{}
+			t.Metrics[mName] = metric.(*Gauge)
 		}
 	case "counter":
-		val, ok = t.Metrics[mName].(*Counter)
+		metric, ok = t.Metrics[mName].(*Counter)
 		if !ok {
-			val = &Counter{}
-			t.Metrics[mName] = val.(*Counter)
+			metric = &Counter{}
+			t.Metrics[mName] = metric.(*Counter)
 		}
 	default:
 		return fmt.Errorf("unexpected metric type: %s", mType)
 	}
 
-	err := val.UpdateValueS(mValue)
+	err := metric.UpdateValueS(mValue)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (t MemStorage) BatchUpdateMetrics(m *[]domain.Metrics, errs *[]error) *[]domain.Metrics {
+
+	for _, v := range *m {
+		mr := new(domain.MetricRequest)
+		mr.Type = v.MType
+		mr.Name = v.ID
+
+		switch mr.Type {
+		case "gauge":
+			mr.Value = fmt.Sprint(*v.Value)
+		case "counter":
+			mr.Value = fmt.Sprint(*v.Delta)
+		default:
+			err := fmt.Errorf("ERROR: unsupported metric type %s", mr.Type)
+			*errs = append(*errs, err)
+			//http.Error(w, fmt.Sprintf("ERROR: unsupported metric type %s", mr.Type), http.StatusNotFound)
+			continue
+		}
+
+		err := t.UpdateMetricS(mr.Type, mr.Name, mr.Value)
+		if err != nil {
+			fmt.Printf("UPDATE ERROR: %s", err.Error())
+			*errs = append(*errs, err)
+			continue
+		}
+	}
+
+	return m
 }
 
 // Gauge - float64
@@ -122,8 +153,8 @@ func (t *Counter) UpdateValueS(metricValueS string) error {
 }
 
 // init metric storage
-func NewMemStorage() MemStorage {
-	return MemStorage{
+func NewMemStorage() *MemStorage {
+	return &MemStorage{
 		Metrics: make(MetricMap),
 	}
 }
@@ -166,6 +197,11 @@ func (t MemStorage) GetSerializableStorage() ([]SerializableMetric, error) {
 	}
 
 	return sma, nil
+}
+
+// assign metric object to certain name. use with caution, TODO: replace with safer API
+func (t MemStorage) SetMetric(name string, metric Metric) {
+	t.Metrics[name] = metric
 }
 
 // Save server state

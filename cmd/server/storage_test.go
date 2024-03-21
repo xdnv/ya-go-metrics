@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"internal/app"
 	. "internal/ports/storage"
 
 	"github.com/stretchr/testify/assert"
@@ -43,9 +44,36 @@ func TestNewMemStorage(t *testing.T) {
 		},
 	}
 
+	// for _, tt := range tests {
+	// 	t.Run(tt.name, func(t *testing.T) {
+	// 		var testStorage = NewMemStorage()
+	// 		var tm Metric
+
+	// 		switch tt.metricType {
+	// 		case "gauge":
+	// 			tm = &Gauge{Value: tt.initialValue.(float64)}
+	// 		case "counter":
+	// 			tm = &Counter{Value: tt.initialValue.(int64)}
+	// 		default:
+	// 			assert.True(t, true, fmt.Sprintf("Unsupported metric type: %s", tt.metricType))
+	// 		}
+
+	// 		for _, v := range tt.updateSequence {
+	// 			tm.UpdateValue(v)
+	// 		}
+
+	// 		testStorage.Metrics[tt.metricName] = tm
+
+	// 		assert.Equal(t, tt.want.Value, GetMetricValue(testStorage.Metrics[tt.metricName]))
+	// 	})
+	// }
+	var testSc = new(app.ServerConfig)
+	testSc.StorageMode = app.Memory
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var testStorage = NewMemStorage()
+
+			var stor = NewUniStorage(testSc)
 			var tm Metric
 
 			switch tt.metricType {
@@ -61,9 +89,11 @@ func TestNewMemStorage(t *testing.T) {
 				tm.UpdateValue(v)
 			}
 
-			testStorage.Metrics[tt.metricName] = tm
+			stor.SetMetric(tt.metricName, tm)
 
-			assert.Equal(t, tt.want.Value, GetMetricValue(testStorage.Metrics[tt.metricName]))
+			//read back metric value
+			metric, _ := stor.GetMetric(tt.metricName)
+			assert.Equal(t, tt.want.Value, metric.GetValue())
 		})
 	}
 }

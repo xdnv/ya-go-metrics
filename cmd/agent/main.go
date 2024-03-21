@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"internal/adapters/logger"
 	"internal/app"
 	"internal/domain"
 	"math/rand"
@@ -19,7 +20,7 @@ import (
 
 var ac app.AgentConfig
 
-func PostValueV1(ac app.AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
+func PostValueV1(ctx context.Context, ac app.AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
 	address := fmt.Sprintf("http://%s/update/%s/%s/%s", ac.Endpoint, counterType, counterName, value)
 	resp, err := http.Post(address, "text/plain", nil)
 	if err != nil {
@@ -28,10 +29,13 @@ func PostValueV1(ac app.AgentConfig, counterType string, counterName string, val
 	return resp, nil
 }
 
-func PostValueV2(ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error) {
+func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error) {
 	contentType := "application/json"
 
-	address := fmt.Sprintf("http://%s/update/", ac.Endpoint)
+	address := fmt.Sprintf("http://%s/updates/", ac.Endpoint)
+	if !ac.BulkUpdate {
+		address = fmt.Sprintf("http://%s/update/", ac.Endpoint)
+	}
 
 	//older API
 	if !ac.UseCompression {
@@ -135,7 +139,7 @@ func reporter(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 		select {
 		case now := <-ticker.C:
 			fmt.Printf("TRACE: send metrics [%s]\n", now.Format("2006-01-02 15:04:05"))
-			sendPayload(ac, ms)
+			sendPayload(ctx, ac, ms)
 		case <-ctx.Done():
 			fmt.Println("agent-reporter: stop requested")
 			return
@@ -143,50 +147,74 @@ func reporter(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 	}
 }
 
-func sendPayload(ac app.AgentConfig, m *domain.MetricStorage) {
+func sendPayload(ctx context.Context, ac app.AgentConfig, m *domain.MetricStorage) {
 	m.RLock()
 	defer m.RUnlock()
 
+	var ma []domain.Metrics
+
 	for k, v := range m.Gauges {
-		resp, err := sendMetric(ac, "gauge", k, &v)
-		if err == nil {
-			resp.Body.Close()
-		}
+		m := domain.Metrics{MType: "gauge", ID: k}
+		val := v //needs to be local
+		m.Value = &val
+		ma = append(ma, m)
 	}
 
 	for k, v := range m.Counters {
-		resp, err := sendMetric(ac, "counter", k, &v)
-		//reset counter after successful transefer
+		m := domain.Metrics{MType: "counter", ID: k}
+		val := v //needs to be local
+		m.Delta = &val
+		ma = append(ma, m)
+	}
+
+	if ac.BulkUpdate {
+		resp, err := sendMetrics(ctx, ac, ma)
 		if err == nil {
 			resp.Body.Close()
-			m.Counters[k] = 0
+			//reset counter after successful transefer
+			for k := range ma {
+				metric := ma[k]
+				if metric.MType == "counter" {
+					m.Counters[metric.ID] = 0
+				}
+			}
+		}
+	} else {
+		for k := range ma {
+			metric := ma[k]
+
+			resp, err := sendMetric(ctx, ac, &metric)
+			if err == nil {
+				resp.Body.Close()
+				//reset counter after successful transefer
+				if metric.MType == "counter" {
+					m.Counters[metric.ID] = 0
+				}
+			}
 		}
 	}
 }
 
-func sendMetric(ac app.AgentConfig, metricType string, metricName string, metricValue interface{}) (*http.Response, error) {
+func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics) (*http.Response, error) {
 	var resp *http.Response
 	var err error
 
 	switch ac.APIVersion {
 	case "v1":
-		resp, err = PostValueV1(ac, metricType, metricName, fmt.Sprint(&metricValue))
-	case "v2":
-		var m domain.Metrics
+		var vs string
 
-		m.MType = metricType
-		m.ID = metricName
-
-		switch metricType {
+		switch metric.MType {
 		case "gauge":
-			m.Value = metricValue.(*float64)
+			vs = fmt.Sprintf("%f", *metric.Value)
 		case "counter":
-			m.Delta = metricValue.(*int64)
+			vs = fmt.Sprintf("%d", *metric.Delta)
 		default:
-			fmt.Printf("ERROR: unsupported metric type [%s]\n", metricType)
+			fmt.Printf("ERROR: unsupported metric type [%s]\n", metric.MType)
 		}
 
-		jsonres, jsonerr := json.Marshal(m)
+		resp, err = PostValueV1(ctx, ac, metric.MType, metric.ID, vs)
+	case "v2":
+		jsonres, jsonerr := json.Marshal(metric)
 		if jsonerr != nil {
 			fmt.Printf("ERROR: JSON marshaling failed [%s]\n", jsonerr)
 			return nil, jsonerr
@@ -196,13 +224,13 @@ func sendMetric(ac app.AgentConfig, metricType string, metricName string, metric
 
 		fmt.Printf("TRACE: POST body %s\n", buf)
 
-		resp, err = PostValueV2(ac, buf)
+		resp, err = PostValueV2(ctx, ac, buf)
 	default:
 		fmt.Printf("ERROR: unsupported API version %s", ac.APIVersion)
 	}
 
 	if err != nil {
-		fmt.Printf("ERROR posting value: %s, %s\n", metricName, err)
+		fmt.Printf("ERROR posting value: %s, %s\n", metric.ID, err)
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
@@ -210,6 +238,44 @@ func sendMetric(ac app.AgentConfig, metricType string, metricName string, metric
 		fmt.Println("response Headers:", resp.Header)
 	}
 	return resp, err
+}
+
+func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error) {
+	var resp *http.Response
+
+	jsonres, jsonerr := json.Marshal(ma)
+	if jsonerr != nil {
+		logger.Error(fmt.Sprintf("ERROR: JSON marshaling failed [%s]", jsonerr))
+		return nil, jsonerr
+	}
+
+	buf := bytes.NewBuffer(jsonres)
+
+	fmt.Printf("TRACE: POST body %s\n", buf)
+
+	backoff := func(ctx context.Context) error {
+		//var err error
+
+		bresp, err := PostValueV2(ctx, ac, buf)
+		resp = bresp //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
+		if err == nil {
+			bresp.Body.Close() //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
+		}
+
+		return app.HandleRetriableWeb(err, "error sending data")
+	}
+
+	err := app.DoRetry(ctx, ac.MaxConnectionRetries, backoff)
+	if err != nil {
+		logger.Error(fmt.Sprintf("ERROR bulk posting, %s", err))
+		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		fmt.Println("response Status:", resp.Status)
+		fmt.Println("response Headers:", resp.Header)
+	}
+	return resp, nil
 }
 
 // global metric storage

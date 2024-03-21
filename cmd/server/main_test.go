@@ -1,6 +1,8 @@
 package main
 
 import (
+	"internal/app"
+	"internal/ports/storage"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +14,11 @@ import (
 )
 
 var _ = func() bool {
+	var testSc = app.ServerConfig{StorageMode: app.Memory}
+	stor = storage.NewUniStorage(&testSc)
+	var tm = &storage.Gauge{Value: 4.5}
+	stor.SetMetric("main_test", tm)
+
 	testing.Init()
 	return true
 }()
@@ -46,8 +53,10 @@ func Test_index(t *testing.T) {
 			request: "/bla",
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
 			request := httptest.NewRequest(http.MethodPost, tt.request, nil)
 			w := httptest.NewRecorder()
 			index(w, request)

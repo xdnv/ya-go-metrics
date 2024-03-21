@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -22,8 +23,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-var stor = storage.NewMemStorage()
 var sc app.ServerConfig
+
+// var stor = storage.NewMemStorage()
+var stor *storage.UniStorage
 
 func handleGZIPRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -67,6 +70,15 @@ func main() {
 	//Warning! do not run outside function, it will break tests due to flag.Parse()
 	sc = app.InitServerConfig()
 
+	stor = storage.NewUniStorage(&sc)
+	defer stor.Close()
+
+	//post-init unistorage actions
+	err := stor.Bootstrap()
+	if err != nil {
+		logger.Fatal(fmt.Sprintf("srv: post-init bootstrap failed, error: %s\n", err))
+	}
+
 	// run `server` in it's own goroutine
 	wg.Add(1)
 	go server(ctx, &wg)
@@ -80,15 +92,18 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
-	fmt.Println("srv: received ^C - shutting down")
+	//fmt.Println("srv: received ^C - shutting down")
+	logger.Info("srv: received ^C - shutting down")
 
 	// tell the goroutines to stop
-	fmt.Println("srv: telling goroutines to stop")
+	//fmt.Println("srv: telling goroutines to stop")
+	logger.Info("srv: telling goroutines to stop")
 	cancel()
 
 	// and wait for them to reply back
 	wg.Wait()
-	fmt.Println("srv: shutdown")
+	//fmt.Println("srv: shutdown")
+	logger.Info("srv: shutdown")
 }
 
 func server(ctx context.Context, wg *sync.WaitGroup) {
@@ -110,13 +125,35 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	//sugar.Infof("srv: using endpoint %s", sc.Endpoint)
 	//sugar.Infof("srv: datafile %s", sc.FileStoragePath)
 	logger.Info(fmt.Sprintf("srv: using endpoint %s", sc.Endpoint))
-	logger.Info(fmt.Sprintf("srv: datafile %s", sc.FileStoragePath))
+
+	logger.Info(fmt.Sprintf("srv: storage mode %v", sc.StorageMode))
+
+	switch sc.StorageMode {
+	case app.Database:
+		//remove password from log output
+		// //old mode
+		// var safeDSN = strings.Split(sc.DatabaseDSN, " ")
+		// for i, v := range safeDSN {
+		// 	if strings.Contains(v, "password=") {
+		// 		safeDSN[i] = "password=***"
+		// 	}
+		// }
+		// logger.Info(fmt.Sprintf("srv: DSN %s", strings.Join(safeDSN, " ")))
+
+		//nu mode
+		re := regexp.MustCompile(`(password)=(?P<password>\S*)`)
+		s := re.ReplaceAllLiteralString(sc.DatabaseDSN, "password=***")
+		logger.Info(fmt.Sprintf("srv: DSN %s", s))
+
+	case app.File:
+		logger.Info(fmt.Sprintf("srv: datafile %s", sc.FileStoragePath))
+	}
 
 	//read server state on start
-	if (sc.FileStoragePath != "") && sc.RestoreMetrics {
+	if sc.StorageMode == app.File && sc.RestoreMetrics {
 		err := stor.LoadState(sc.FileStoragePath)
 		if err != nil {
-			fmt.Printf("srv: failed to load server state from [%s], error: %s\n", sc.FileStoragePath, err)
+			logger.Error(fmt.Sprintf("srv: failed to load server state from [%s], error: %s\n", sc.FileStoragePath, err))
 		}
 	}
 
@@ -131,10 +168,12 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	mux.Use(middleware.Compress(5, sc.CompressibleContentTypes...))
 
 	mux.Get("/", index)
+	mux.Get("/ping", pingDBServer)
 	mux.Post("/value/", requestMetricV2)
 	mux.Get("/value/{type}/{name}", requestMetricV1)
 	mux.Post("/update/", updateMetricV2)
 	mux.Post("/update/{type}/{name}/{value}", updateMetricV1)
+	mux.Post("/updates/", updateMetrics)
 
 	// create a server
 	srv := &http.Server{Addr: sc.Endpoint, Handler: mux}
@@ -142,7 +181,8 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	go func() {
 		// service connections
 		if err := srv.ListenAndServe(); err != nil {
-			fmt.Printf("Listen: %s\n", err)
+			//fmt.Printf("Listen: %s\n", err)
+			logger.Error(fmt.Sprintf("Listen: %s\n", err))
 			//log.Fatal(err)
 		}
 	}()
@@ -159,15 +199,15 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	srv.Shutdown(shutdownCtx)
 
 	//save server state on shutdown
-	if sc.FileStoragePath != "" {
+	if sc.StorageMode == app.File {
 		err := stor.SaveState(sc.FileStoragePath)
 		if err != nil {
 			//fmt.Printf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
-			logger.Info(fmt.Sprintf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
+			logger.Error(fmt.Sprintf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
 		}
 	}
 
-	fmt.Println("srv: server stopped")
+	logger.Info("srv: server stopped")
 }
 
 func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
@@ -175,7 +215,7 @@ func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	//save dump is disabled or set to immediate mode
-	if (sc.FileStoragePath == "") || (sc.StoreInterval == 0) {
+	if (sc.StorageMode != app.File) || (sc.StoreInterval == 0) {
 		return
 	}
 
@@ -185,14 +225,17 @@ func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
 	for {
 		select {
 		case now := <-ticker.C:
-			fmt.Printf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05"))
+			//fmt.Printf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05"))
+			logger.Info(fmt.Sprintf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05")))
 
 			err := stor.SaveState(sc.FileStoragePath)
 			if err != nil {
-				fmt.Printf("srv-dumper: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+				//fmt.Printf("srv-dumper: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+				logger.Error(fmt.Sprintf("srv-dumper: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
 			}
 		case <-ctx.Done():
-			fmt.Println("srv-dumper: stop requested")
+			//fmt.Println("srv-dumper: stop requested")
+			logger.Info("srv-dumper: stop requested")
 			return
 		}
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"internal/app"
 	"internal/domain"
 	"net/http"
 
@@ -25,7 +26,7 @@ func updateMetricV1(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//save dump if set to immediate mode
-	if (sc.FileStoragePath != "") && (sc.StoreInterval == 0) {
+	if (sc.StorageMode == app.File) && (sc.StoreInterval == 0) {
 		err := stor.SaveState(sc.FileStoragePath)
 		if err != nil {
 			fmt.Printf("srv-updateMetricV1: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
@@ -68,14 +69,19 @@ func updateMetricV2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//save dump if set to immediate mode
-	if (sc.FileStoragePath != "") && (sc.StoreInterval == 0) {
+	if (sc.StorageMode == app.File) && (sc.StoreInterval == 0) {
 		err := stor.SaveState(sc.FileStoragePath)
 		if err != nil {
 			fmt.Printf("srv-updateMetricV2: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
 		}
 	}
 
-	metric := stor.Metrics[mr.Name]
+	// metric := stor.Metrics[mr.Name]
+	metric, err := stor.GetMetric(mr.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	switch mr.Type {
 	case "gauge":
