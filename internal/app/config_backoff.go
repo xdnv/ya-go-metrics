@@ -64,7 +64,7 @@ func HandleRetriableDB(err error, retryMessage string) error {
 	if err != nil {
 
 		var pgErr *pgconn.PgError
-		//if errors.As(err, &pgErr) && pgerrcode.IsInvalidCatalogName(pgErr.Code) { ////debug line with wrong database name
+		//if errors.As(err, &pgErr) && pgerrcode.IsInvalidCatalogName(pgErr.Code) { ////debug line with wrong database name error subclass
 		if errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
 			logger.Error(fmt.Sprintf("%s, retry: %v", retryMessage, err))
 			return retry.RetryableError(err)
