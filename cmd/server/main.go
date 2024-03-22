@@ -69,8 +69,10 @@ func handleSignedRequests(next http.Handler) http.Handler {
 		}
 
 		logger.Info("srv-sec: handling signed request")
+		sigRaw := r.Header.Get(security.GetSignatureToken())
+		logger.Info("srv-sec: sig=" + sigRaw)
 
-		sig, err := base64.URLEncoding.DecodeString(r.Header.Get(security.GetSignatureToken()))
+		sig, err := base64.URLEncoding.DecodeString(sigRaw)
 		if err != nil {
 			http.Error(rw, "incorrect message signature format", http.StatusBadRequest)
 			return
