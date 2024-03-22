@@ -95,10 +95,10 @@ func handleSignedRequests(next http.Handler) http.Handler {
 			//return
 
 			//...but this passes yandex iter14 test: yandex gives no signature
-			logger.Info("srv-sec: message security check failed")
+			logger.Info("srv-sec: message security check FAILED")
+		} else {
+			logger.Info(fmt.Sprint("srv-sec: signature OK, id=", sig))
 		}
-
-		logger.Info(fmt.Sprint("srv-sec: signature OK, id=", sig))
 
 		next.ServeHTTP(rw, r)
 	})
