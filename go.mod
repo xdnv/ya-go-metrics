@@ -20,6 +20,10 @@ require internal/adapters/logger v1.0.0
 
 replace internal/adapters/logger => ./internal/adapters/logger
 
+require internal/adapters/security v1.0.0
+
+replace internal/adapters/security => ./internal/adapters/security
+
 require internal/app v1.0.0
 
 replace internal/app => ./internal/app

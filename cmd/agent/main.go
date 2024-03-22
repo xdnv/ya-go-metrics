@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"internal/adapters/logger"
+	"internal/adapters/security"
 	"internal/app"
 	"internal/domain"
 	"math/rand"
@@ -62,9 +64,26 @@ func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*
 	r.Header.Set("Content-Type", contentType)
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
+	signMessage(ac, r, body)
 	resp, err := http.DefaultClient.Do(r)
 
 	return resp, err
+}
+
+func signMessage(ac app.AgentConfig, r *http.Request, body *bytes.Buffer) error {
+	if !ac.UseSignedMessaging {
+		return nil
+	}
+
+	sig, err := security.GetSignature(body.Bytes(), []byte(ac.MsgKey))
+	if err != nil {
+		return err
+	}
+
+	//hmac.Equal
+	r.Header.Set(security.GetSignatureToken(), hex.EncodeToString(sig))
+
+	return nil
 }
 
 func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
@@ -317,6 +336,7 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	fmt.Printf("agent: using endpoint %s\n", ac.Endpoint)
 	fmt.Printf("agent: poll interval %d\n", ac.PollInterval)
 	fmt.Printf("agent: report interval %d\n", ac.ReportInterval)
+	fmt.Printf("agent: signed messaging=%v\n", ac.UseSignedMessaging)
 
 	wg.Add(1)
 	go collector(ctx, ac, wg)
