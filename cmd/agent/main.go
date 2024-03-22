@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"internal/adapters/logger"
@@ -81,7 +81,7 @@ func signMessage(ac app.AgentConfig, r *http.Request, body *bytes.Buffer) error 
 	}
 
 	//hmac.Equal
-	r.Header.Set(security.GetSignatureToken(), hex.EncodeToString(sig))
+	r.Header.Set(security.GetSignatureToken(), base64.URLEncoding.EncodeToString(sig))
 
 	return nil
 }
