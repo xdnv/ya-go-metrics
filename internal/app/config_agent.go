@@ -17,6 +17,7 @@ type AgentConfig struct {
 	UseCompression       bool
 	BulkUpdate           bool
 	MaxConnectionRetries uint64
+	RateLimit            int64
 }
 
 func InitAgentConfig() AgentConfig {
@@ -37,8 +38,9 @@ func InitAgentConfig() AgentConfig {
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port server endpoint to send metric data")
 	flag.Int64Var(&cf.PollInterval, "p", 2, "metric poll interval in seconds")
 	flag.Int64Var(&cf.ReportInterval, "r", 10, "metric reporting frequency in seconds")
+	flag.Int64Var(&cf.RateLimit, "l", 2, "max simultaneous connections to server")
 	flag.StringVar(&MsgKey, "k", "", "key to use signed messaging, empty value disables signing")
-	flag.StringVar(&cf.LogLevel, "l", "info", "log level")
+	flag.StringVar(&cf.LogLevel, "v", "info", "log verbocity (log level)")
 	flag.Parse()
 
 	//parse env variables
@@ -57,6 +59,12 @@ func InitAgentConfig() AgentConfig {
 			cf.ReportInterval = intval
 		}
 	}
+	if val, found := os.LookupEnv("RATE_LIMIT"); found {
+		intval, err := strconv.ParseInt(val, 10, 64)
+		if err == nil {
+			cf.RateLimit = intval
+		}
+	}
 	if val, found := os.LookupEnv("KEY"); found {
 		MsgKey = val
 	}
@@ -72,6 +80,9 @@ func InitAgentConfig() AgentConfig {
 	}
 	if cf.ReportInterval == 0 {
 		panic("PANIC: report interval is not set")
+	}
+	if cf.RateLimit == 0 {
+		panic("PANIC: rate limit is not set")
 	}
 	if cf.LogLevel == "" {
 		panic("PANIC: log level is not set")
