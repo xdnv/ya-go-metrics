@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,7 +18,7 @@ import (
 	"internal/ports/storage"
 
 	"internal/adapters/logger"
-	"internal/adapters/security"
+	"internal/adapters/signer"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -55,50 +52,6 @@ func handleGZIPRequests(next http.Handler) http.Handler {
 		}
 
 		r.Body = io.NopCloser(bytes.NewBuffer(body))
-
-		next.ServeHTTP(rw, r)
-	})
-}
-
-func handleSignedRequests(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-
-		if !sc.UseSignedMessaging {
-			next.ServeHTTP(rw, r)
-			return
-		}
-
-		logger.Info("srv-sec: handling signed request")
-
-		sigRaw := r.Header.Get(security.GetSignatureToken())
-		//logger.Info("srv-sec: sig=" + sigRaw)
-
-		sig, err := base64.URLEncoding.DecodeString(sigRaw)
-		if err != nil {
-			http.Error(rw, "incorrect message signature format", http.StatusBadRequest)
-			return
-		}
-
-		//passing body to next handler
-		body, _ := io.ReadAll(r.Body)
-		r.Body.Close() //  must close
-		r.Body = io.NopCloser(bytes.NewBuffer(body))
-
-		//calculate body signature
-		h := hmac.New(sha256.New, []byte(sc.MsgKey))
-		h.Write(body)
-		bodySig := h.Sum(nil)
-
-		if !hmac.Equal(sig, bodySig) {
-			//this should and WILL be done in production
-			//http.Error(rw, "message security check failed", http.StatusBadRequest)
-			//return
-
-			//...but this passes yandex iter14 test: yandex gives no signature
-			logger.Info("srv-sec: message security check FAILED")
-		} else {
-			logger.Info(fmt.Sprint("srv-sec: signature OK, id=", sig))
-		}
 
 		next.ServeHTTP(rw, r)
 	})
@@ -160,7 +113,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 
 	logger.Info(fmt.Sprintf("srv: using endpoint %s", sc.Endpoint))
 	logger.Info(fmt.Sprintf("srv: storage mode %v", sc.StorageMode))
-	logger.Info(fmt.Sprintf("srv: signed messaging=%v\n", sc.UseSignedMessaging))
+	logger.Info(fmt.Sprintf("srv: signed messaging=%v\n", signer.UseSignedMessaging()))
 
 	switch sc.StorageMode {
 	case app.Database:
@@ -199,7 +152,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	//mux.Use(middleware.Logger)
 	mux.Use(logger.LoggerMiddleware)
 	mux.Use(handleGZIPRequests)
-	mux.Use(handleSignedRequests)
+	mux.Use(signer.HandleSignedRequests)
 	mux.Use(middleware.Compress(5, sc.CompressibleContentTypes...))
 
 	mux.Get("/", index)

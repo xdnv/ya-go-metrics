@@ -20,9 +20,9 @@ require internal/adapters/logger v1.0.0
 
 replace internal/adapters/logger => ./internal/adapters/logger
 
-require internal/adapters/security v1.0.0
+require internal/adapters/signer v1.0.0
 
-replace internal/adapters/security => ./internal/adapters/security
+replace internal/adapters/signer => ./internal/adapters/signer
 
 require internal/app v1.0.0
 
