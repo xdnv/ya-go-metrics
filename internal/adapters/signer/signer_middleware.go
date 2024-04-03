@@ -19,6 +19,17 @@ func HandleSignedRequests(next http.Handler) http.Handler {
 			return
 		}
 
+		//passing body to next handler
+		body, _ := io.ReadAll(r.Body)
+		r.Body.Close() //  must close
+		r.Body = io.NopCloser(bytes.NewBuffer(body))
+
+		if len(body) == 0 {
+			logger.Info("signer: empty body, no security check needed")
+			next.ServeHTTP(rw, r)
+			return
+		}
+
 		logger.Info("signer: handling signed request")
 
 		sigRaw := r.Header.Get(GetSignatureToken())
@@ -29,11 +40,6 @@ func HandleSignedRequests(next http.Handler) http.Handler {
 			http.Error(rw, "incorrect message signature format", http.StatusBadRequest)
 			return
 		}
-
-		//passing body to next handler
-		body, _ := io.ReadAll(r.Body)
-		r.Body.Close() //  must close
-		r.Body = io.NopCloser(bytes.NewBuffer(body))
 
 		//calculate body signature
 		h := hmac.New(sha256.New, []byte(signer.MsgKey))

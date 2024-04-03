@@ -15,7 +15,7 @@ var signer *SignerObject
 
 func init() {
 	signer = new(SignerObject)
-	signer.StrictSignedMessaging = false
+	signer.StrictSignedMessaging = true
 }
 
 func SetKey(msgKey string) {
