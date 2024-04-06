@@ -290,6 +290,7 @@ func payloadSender(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup, 
 		// no results needed in current configuration, in future can return err for specific UUID
 		//results <- nil
 	}
+
 	fmt.Printf("rated-sender(%d): channel closed\n", id)
 }
 
