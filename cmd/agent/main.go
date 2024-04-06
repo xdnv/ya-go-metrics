@@ -142,6 +142,43 @@ func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 			ms.Gauges["NumGoroutine"] = float64(runtime.NumGoroutine()) // Number of goroutines
 			ms.Gauges["LiveObjects"] = float64(rtm.Mallocs - rtm.Frees) // Live objects = Mallocs - Frees
 
+			//moved to separate goroutine
+			// // add metrics from gopsutil
+			// vm, err := mem.VirtualMemory()
+			// if err == nil {
+			// 	ms.Gauges["TotalMemory"] = float64(vm.Total)
+			// 	ms.Gauges["FreeMemory"] = float64(vm.Free)
+			// }
+
+			// percentage, err := cpu.Percent(0, true)
+			// if err == nil {
+			// 	for idx, cpupercent := range percentage {
+			// 		ms.Gauges[fmt.Sprintf("CPUutilization%d", idx)] = float64(cpupercent)
+			// 	}
+			// }
+
+			ms.Unlock()
+		case <-ctx.Done():
+			fmt.Println("agent-collector: stop requested")
+			return
+		}
+	}
+}
+
+func collectorPs(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
+	//execute to exit wait group
+	defer wg.Done()
+
+	ticker := time.NewTicker(time.Duration(ac.PollInterval) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case now := <-ticker.C:
+			fmt.Printf("TRACE: collect PS metrics [%s]\n", now.Format("2006-01-02 15:04:05"))
+
+			ms.Lock()
+
 			// add metrics from gopsutil
 			vm, err := mem.VirtualMemory()
 			if err == nil {
@@ -158,7 +195,7 @@ func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 
 			ms.Unlock()
 		case <-ctx.Done():
-			fmt.Println("agent-collector: stop requested")
+			fmt.Println("agent-collector-ps: stop requested")
 			return
 		}
 	}
@@ -357,6 +394,8 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 
 	wg.Add(1)
 	go collector(ctx, ac, wg)
+	wg.Add(1)
+	go collectorPs(ctx, ac, wg)
 	wg.Add(1)
 	go reporter(ctx, ac, wg)
 
