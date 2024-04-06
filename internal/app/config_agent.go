@@ -17,6 +17,7 @@ type AgentConfig struct {
 	UseCompression       bool
 	BulkUpdate           bool
 	MaxConnectionRetries uint64
+	UseRateLimit         bool
 	RateLimit            int64
 }
 
@@ -38,7 +39,7 @@ func InitAgentConfig() AgentConfig {
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port server endpoint to send metric data")
 	flag.Int64Var(&cf.PollInterval, "p", 2, "metric poll interval in seconds")
 	flag.Int64Var(&cf.ReportInterval, "r", 10, "metric reporting frequency in seconds")
-	flag.Int64Var(&cf.RateLimit, "l", 2, "max simultaneous connections to server")
+	flag.Int64Var(&cf.RateLimit, "l", 0, "max simultaneous connections to server, set 0 to disable rate limit")
 	flag.StringVar(&MsgKey, "k", "", "key to use signed messaging, empty value disables signing")
 	flag.StringVar(&cf.LogLevel, "v", "info", "log verbocity (log level)")
 	flag.Parse()
@@ -81,15 +82,14 @@ func InitAgentConfig() AgentConfig {
 	if cf.ReportInterval == 0 {
 		panic("PANIC: report interval is not set")
 	}
-	if cf.RateLimit == 0 {
-		panic("PANIC: rate limit is not set")
-	}
 	if cf.LogLevel == "" {
 		panic("PANIC: log level is not set")
 	}
 
 	//set signing mode
 	signer.SetKey(MsgKey)
+
+	cf.UseRateLimit = (cf.RateLimit > 0)
 
 	return cf
 }

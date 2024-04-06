@@ -33,6 +33,7 @@ require internal/domain v1.0.0
 replace internal/domain => ./internal/domain
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/shirou/gopsutil/v3 v3.24.3
 	internal/ports/storage v1.0.0
 )
