@@ -177,10 +177,11 @@ func collectorPs(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 		case now := <-ticker.C:
 			fmt.Printf("TRACE: collect PS metrics [%s]\n", now.Format("2006-01-02 15:04:05"))
 
-			ms.Lock()
-
 			// add metrics from gopsutil
 			vm, err := mem.VirtualMemory()
+
+			ms.Lock()
+
 			if err == nil {
 				ms.Gauges["TotalMemory"] = float64(vm.Total)
 				ms.Gauges["FreeMemory"] = float64(vm.Free)
