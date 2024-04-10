@@ -18,6 +18,7 @@ import (
 	"internal/ports/storage"
 
 	"internal/adapters/logger"
+	"internal/adapters/signer"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -110,23 +111,9 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
-	// logger, err := zap.NewDevelopment()
-	// if err != nil {
-	// 	panic("srv: cannot initialize zap logger")
-	// }
-	// defer logger.Sync()
-
-	// sugar := logger.Sugar()
-
-	//sugar.Infof("Failed to fetch URL: %s", url)
-	//sugar.Errorf("Failed to fetch URL: %s", url)
-
-	//fmt.Printf("using endpoint: %s\n", sc.Endpoint)
-	//sugar.Infof("srv: using endpoint %s", sc.Endpoint)
-	//sugar.Infof("srv: datafile %s", sc.FileStoragePath)
 	logger.Info(fmt.Sprintf("srv: using endpoint %s", sc.Endpoint))
-
 	logger.Info(fmt.Sprintf("srv: storage mode %v", sc.StorageMode))
+	logger.Info(fmt.Sprintf("srv: signed messaging=%v\n", signer.UseSignedMessaging()))
 
 	switch sc.StorageMode {
 	case app.Database:
@@ -165,6 +152,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	//mux.Use(middleware.Logger)
 	mux.Use(logger.LoggerMiddleware)
 	mux.Use(handleGZIPRequests)
+	mux.Use(signer.HandleSignedRequests)
 	mux.Use(middleware.Compress(5, sc.CompressibleContentTypes...))
 
 	mux.Get("/", index)

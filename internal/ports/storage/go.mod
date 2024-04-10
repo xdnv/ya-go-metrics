@@ -21,6 +21,10 @@ require internal/adapters/logger v1.0.0
 
 replace internal/adapters/logger => ../../adapters/logger
 
+require internal/adapters/signer v1.0.0 // indirect
+
+replace internal/adapters/signer => ../../adapters/signer
+
 require internal/app v1.0.0
 
 replace internal/app => ../../app

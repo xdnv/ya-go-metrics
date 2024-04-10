@@ -2,6 +2,7 @@ package app
 
 import (
 	"flag"
+	"internal/adapters/signer"
 	"os"
 	"strconv"
 )
@@ -16,11 +17,13 @@ type AgentConfig struct {
 	UseCompression       bool
 	BulkUpdate           bool
 	MaxConnectionRetries uint64
-	UseSignedMessaging   bool
-	MsgKey               string
+	UseRateLimit         bool
+	RateLimit            int64
 }
 
 func InitAgentConfig() AgentConfig {
+	var MsgKey string
+
 	cf := AgentConfig{}
 
 	//activate JSON support
@@ -36,8 +39,9 @@ func InitAgentConfig() AgentConfig {
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port server endpoint to send metric data")
 	flag.Int64Var(&cf.PollInterval, "p", 2, "metric poll interval in seconds")
 	flag.Int64Var(&cf.ReportInterval, "r", 10, "metric reporting frequency in seconds")
-	flag.StringVar(&cf.MsgKey, "k", "", "key to use signed messaging, empty value disables signing")
-	flag.StringVar(&cf.LogLevel, "l", "info", "log level")
+	flag.Int64Var(&cf.RateLimit, "l", 0, "max simultaneous connections to server, set 0 to disable rate limit")
+	flag.StringVar(&MsgKey, "k", "", "key to use signed messaging, empty value disables signing")
+	flag.StringVar(&cf.LogLevel, "v", "info", "log verbocity (log level)")
 	flag.Parse()
 
 	//parse env variables
@@ -56,8 +60,14 @@ func InitAgentConfig() AgentConfig {
 			cf.ReportInterval = intval
 		}
 	}
+	if val, found := os.LookupEnv("RATE_LIMIT"); found {
+		intval, err := strconv.ParseInt(val, 10, 64)
+		if err == nil {
+			cf.RateLimit = intval
+		}
+	}
 	if val, found := os.LookupEnv("KEY"); found {
-		cf.MsgKey = val
+		MsgKey = val
 	}
 	if val, found := os.LookupEnv("LOG_LEVEL"); found {
 		cf.LogLevel = val
@@ -77,7 +87,9 @@ func InitAgentConfig() AgentConfig {
 	}
 
 	//set signing mode
-	cf.UseSignedMessaging = (cf.MsgKey != "")
+	signer.SetKey(MsgKey)
+
+	cf.UseRateLimit = (cf.RateLimit > 0)
 
 	return cf
 }

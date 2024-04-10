@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"internal/adapters/logger"
+	"internal/adapters/signer"
 	"internal/app"
 	"internal/domain"
 	"math/rand"
@@ -16,9 +18,14 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
 var ac app.AgentConfig
+var sendJobs chan uuid.UUID
 
 func PostValueV1(ctx context.Context, ac app.AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
 	address := fmt.Sprintf("http://%s/update/%s/%s/%s", ac.Endpoint, counterType, counterName, value)
@@ -62,9 +69,26 @@ func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*
 	r.Header.Set("Content-Type", contentType)
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
+	signMessage(r, body)
 	resp, err := http.DefaultClient.Do(r)
 
 	return resp, err
+}
+
+func signMessage(r *http.Request, body *bytes.Buffer) error {
+	if !signer.UseSignedMessaging() {
+		return nil
+	}
+
+	sig, err := signer.GetSignature(body.Bytes())
+	if err != nil {
+		return err
+	}
+
+	//hmac.Equal
+	r.Header.Set(signer.GetSignatureToken(), base64.URLEncoding.EncodeToString(sig))
+
+	return nil
 }
 
 func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
@@ -120,9 +144,61 @@ func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 			ms.Gauges["NumGoroutine"] = float64(runtime.NumGoroutine()) // Number of goroutines
 			ms.Gauges["LiveObjects"] = float64(rtm.Mallocs - rtm.Frees) // Live objects = Mallocs - Frees
 
+			//moved to separate goroutine
+			// // add metrics from gopsutil
+			// vm, err := mem.VirtualMemory()
+			// if err == nil {
+			// 	ms.Gauges["TotalMemory"] = float64(vm.Total)
+			// 	ms.Gauges["FreeMemory"] = float64(vm.Free)
+			// }
+
+			// percentage, err := cpu.Percent(0, true)
+			// if err == nil {
+			// 	for idx, cpupercent := range percentage {
+			// 		ms.Gauges[fmt.Sprintf("CPUutilization%d", idx)] = float64(cpupercent)
+			// 	}
+			// }
+
 			ms.Unlock()
 		case <-ctx.Done():
 			fmt.Println("agent-collector: stop requested")
+			return
+		}
+	}
+}
+
+func collectorPs(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
+	//execute to exit wait group
+	defer wg.Done()
+
+	ticker := time.NewTicker(time.Duration(ac.PollInterval) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case now := <-ticker.C:
+			fmt.Printf("TRACE: collect PS metrics [%s]\n", now.Format("2006-01-02 15:04:05"))
+
+			// add metrics from gopsutil
+			vm, err := mem.VirtualMemory()
+
+			ms.Lock()
+
+			if err == nil {
+				ms.Gauges["TotalMemory"] = float64(vm.Total)
+				ms.Gauges["FreeMemory"] = float64(vm.Free)
+			}
+
+			percentage, err := cpu.Percent(0, true)
+			if err == nil {
+				for idx, cpupercent := range percentage {
+					ms.Gauges[fmt.Sprintf("CPUutilization%d", idx)] = float64(cpupercent)
+				}
+			}
+
+			ms.Unlock()
+		case <-ctx.Done():
+			fmt.Println("agent-collector-ps: stop requested")
 			return
 		}
 	}
@@ -138,8 +214,13 @@ func reporter(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 	for {
 		select {
 		case now := <-ticker.C:
-			fmt.Printf("TRACE: send metrics [%s]\n", now.Format("2006-01-02 15:04:05"))
-			sendPayload(ctx, ac, ms)
+			if !ac.UseRateLimit {
+				fmt.Printf("TRACE: send metrics [%s]\n", now.Format("2006-01-02 15:04:05"))
+				sendPayload(ctx, ac, ms)
+			} else {
+				fmt.Printf("TRACE: send metrics rated [%s]\n", now.Format("2006-01-02 15:04:05"))
+				sendJobs <- uuid.New()
+			}
 		case <-ctx.Done():
 			fmt.Println("agent-reporter: stop requested")
 			return
@@ -193,6 +274,24 @@ func sendPayload(ctx context.Context, ac app.AgentConfig, m *domain.MetricStorag
 			}
 		}
 	}
+}
+
+// rate limited payload sender goroutine
+func payloadSender(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup, id int, jobs <-chan uuid.UUID) {
+	defer wg.Done()
+
+	fmt.Printf("rated-sender(%d): init\n", id)
+
+	for uid := range jobs {
+		fmt.Printf("rated-sender(%d): send metrics [%s]\n", id, uid)
+
+		sendPayload(ctx, ac, ms)
+
+		// no results needed in current configuration, in future can return err for specific UUID
+		//results <- nil
+	}
+
+	fmt.Printf("rated-sender(%d): channel closed\n", id)
 }
 
 func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics) (*http.Response, error) {
@@ -317,14 +416,32 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	fmt.Printf("agent: using endpoint %s\n", ac.Endpoint)
 	fmt.Printf("agent: poll interval %d\n", ac.PollInterval)
 	fmt.Printf("agent: report interval %d\n", ac.ReportInterval)
+	fmt.Printf("agent: signed messaging=%v\n", signer.UseSignedMessaging())
+	fmt.Printf("agent: rate limit=%v\n", ac.RateLimit)
+
+	//add optional rate limiter as required by technical specs
+	if ac.UseRateLimit {
+		sendJobs = make(chan uuid.UUID, ac.RateLimit)
+		for w := 1; w <= int(ac.RateLimit); w++ {
+			wg.Add(1)
+			go payloadSender(ctx, ac, wg, w, sendJobs)
+		}
+	}
 
 	wg.Add(1)
 	go collector(ctx, ac, wg)
+	wg.Add(1)
+	go collectorPs(ctx, ac, wg)
 	wg.Add(1)
 	go reporter(ctx, ac, wg)
 
 	<-ctx.Done()
 	fmt.Println("agent: shutdown requested")
+
+	// close channel on exit
+	if ac.UseRateLimit {
+		close(sendJobs)
+	}
 
 	// // shut down gracefully with timeout of 5 seconds max
 	// _, cancel := context.WithTimeout(context.Background(), 5*time.Second)
