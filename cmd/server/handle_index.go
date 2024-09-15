@@ -30,7 +30,7 @@ const indexTableTpl = "<table>%s</table>"
 const indexTableHeaderTpl = "<tr><th>%s</th><th>%v</th></tr>"
 const indexTableRowTpl = "<tr><td>%s</td><td style=\"text-align: right;\">%v</td></tr>"
 
-func index(w http.ResponseWriter, r *http.Request) {
+func handleIndex(w http.ResponseWriter, r *http.Request) {
 	//check for malformed requests - only exact root path accepted
 	//Important: covered by tests, removal will bring tests to fail
 	if r.URL.Path != "/" {

@@ -155,7 +155,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	mux.Use(signer.HandleSignedRequests)
 	mux.Use(middleware.Compress(5, sc.CompressibleContentTypes...))
 
-	mux.Get("/", index)
+	mux.Get("/", handleIndex)
 	mux.Get("/ping", pingDBServer)
 	mux.Post("/value/", requestMetricV2)
 	mux.Get("/value/{type}/{name}", requestMetricV1)
