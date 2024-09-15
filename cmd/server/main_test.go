@@ -59,7 +59,7 @@ func Test_index(t *testing.T) {
 
 			request := httptest.NewRequest(http.MethodPost, tt.request, nil)
 			w := httptest.NewRecorder()
-			index(w, request)
+			handleIndex(w, request)
 
 			result := w.Result()
 
