@@ -11,7 +11,7 @@ import (
 )
 
 // HTTP update processing
-func updateMetricV1(w http.ResponseWriter, r *http.Request) {
+func handleUpdateMetricV1(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 	mr := new(domain.MetricRequest)
@@ -37,7 +37,7 @@ func updateMetricV1(w http.ResponseWriter, r *http.Request) {
 }
 
 // HTTP update processing
-func updateMetricV2(w http.ResponseWriter, r *http.Request) {
+func handleUpdateMetricV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var m domain.Metrics

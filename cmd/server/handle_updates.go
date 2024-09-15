@@ -10,7 +10,7 @@ import (
 )
 
 // HTTP update processing
-func updateMetrics(w http.ResponseWriter, r *http.Request) {
+func handleUpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var m []domain.Metrics

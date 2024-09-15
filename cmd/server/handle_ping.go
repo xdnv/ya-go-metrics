@@ -7,8 +7,9 @@ import (
 )
 
 // HTTP request processing
-func pingDBServer(w http.ResponseWriter, r *http.Request) {
+func handlePingDBServer(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	//w.WriteHeader(http.StatusOK)
 
 	if sc.StorageMode != app.Database {
 		http.Error(w, "cannot ping DB connection: server does not run in Database mode", http.StatusBadRequest)
@@ -36,6 +37,4 @@ func pingDBServer(w http.ResponseWriter, r *http.Request) {
 
 	body := "Ping OK"
 	w.Write([]byte(body))
-
-	//w.WriteHeader(http.StatusOK)
 }

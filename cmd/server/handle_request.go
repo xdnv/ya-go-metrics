@@ -11,7 +11,7 @@ import (
 )
 
 // HTTP request processing
-func requestMetricV1(w http.ResponseWriter, r *http.Request) {
+func handleRequestMetricV1(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 	mr := new(domain.MetricRequest)
@@ -46,7 +46,7 @@ func requestMetricV1(w http.ResponseWriter, r *http.Request) {
 }
 
 // HTTP request processing
-func requestMetricV2(w http.ResponseWriter, r *http.Request) {
+func handleRequestMetricV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var m domain.Metrics
