@@ -1,6 +1,6 @@
 package domain
 
-// iter7 storage class for JSON exchange
+// metric storage object used in requests (iter7 storage class for JSON exchange)
 type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter

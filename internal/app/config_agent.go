@@ -1,3 +1,4 @@
+// agent configuration module provides app-wide configuration structure with easy init
 package app
 
 import (
@@ -8,33 +9,30 @@ import (
 	"internal/adapters/signer"
 )
 
-// agent config storage
+// agent configuration
 type AgentConfig struct {
-	Endpoint             string
-	ReportInterval       int64
-	PollInterval         int64
-	LogLevel             string
-	APIVersion           string
-	UseCompression       bool
-	BulkUpdate           bool
-	MaxConnectionRetries uint64
-	UseRateLimit         bool
-	RateLimit            int64
+	Endpoint             string // the address:port server endpoint to send metric data
+	ReportInterval       int64  // metric reporting frequency in seconds
+	PollInterval         int64  // metric poll interval in seconds
+	LogLevel             string // log verbosity (log level)
+	APIVersion           string // API version to send metric data. Recent is v2
+	UseCompression       bool   // activate gzip compression
+	BulkUpdate           bool   // activate bulk JSON metric update
+	MaxConnectionRetries uint64 // Connection retries for retriable functions (does not include original request. 0 to disable)
+	UseRateLimit         bool   // flag option to enable or disable rate limiter
+	RateLimit            int64  // max simultaneous connections to server (rate limit)
 }
 
+// set agent configuration using command line arguments and/or environment variables
 func InitAgentConfig() AgentConfig {
 	var MsgKey string
 
 	cf := AgentConfig{}
 
-	//activate JSON support
-	cf.APIVersion = "v2"
-	//activate gzip compression
-	cf.UseCompression = true
-	//activate bulk JSON metric update
-	cf.BulkUpdate = true
-	//Connection retries for retriable functions (does not include original request. 0 to disable)
-	cf.MaxConnectionRetries = 3
+	cf.APIVersion = "v2"        // activate JSON support
+	cf.UseCompression = true    // activate gzip compression
+	cf.BulkUpdate = true        // activate bulk JSON metric update
+	cf.MaxConnectionRetries = 3 // Connection retries for retriable functions (does not include original request. 0 to disable)
 
 	//set defaults and read command line
 	flag.StringVar(&cf.Endpoint, "a", "localhost:8080", "the address:port server endpoint to send metric data")
@@ -42,7 +40,7 @@ func InitAgentConfig() AgentConfig {
 	flag.Int64Var(&cf.ReportInterval, "r", 10, "metric reporting frequency in seconds")
 	flag.Int64Var(&cf.RateLimit, "l", 0, "max simultaneous connections to server, set 0 to disable rate limit")
 	flag.StringVar(&MsgKey, "k", "", "key to use signed messaging, empty value disables signing")
-	flag.StringVar(&cf.LogLevel, "v", "info", "log verbocity (log level)")
+	flag.StringVar(&cf.LogLevel, "v", "info", "log verbosity (log level)")
 	flag.Parse()
 
 	//parse env variables

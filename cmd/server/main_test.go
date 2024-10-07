@@ -24,6 +24,7 @@ var _ = func() bool {
 	return true
 }()
 
+// test suite for index() handler
 func Test_index(t *testing.T) {
 	type want struct {
 		contentType string

@@ -1,3 +1,4 @@
+// server configuration module provides app-wide configuration structure with easy init
 package app
 
 import (
@@ -12,12 +13,14 @@ import (
 // defines main session storage type based on server config given
 type StorageType int
 
+// session storage type
 const (
 	Memory StorageType = iota
 	File
 	Database
 )
 
+// return session storage type as string value
 func (t StorageType) String() string {
 	switch t {
 	case Memory:
@@ -30,6 +33,7 @@ func (t StorageType) String() string {
 	return fmt.Sprintf("Unknown (%d)", t)
 }
 
+// server configuration
 type ServerConfig struct {
 	Endpoint                 string
 	StoreInterval            int64

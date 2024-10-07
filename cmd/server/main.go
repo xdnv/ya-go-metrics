@@ -1,3 +1,4 @@
+// the main server module provides server (metric storage and update) function
 package main
 
 import (

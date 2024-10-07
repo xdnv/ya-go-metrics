@@ -1,3 +1,4 @@
+// the backoff module provides transparent sequential requests to objects which may be temporarily unavailable (i.e. network objects)
 package app
 
 import (
@@ -13,6 +14,7 @@ import (
 	"github.com/sethvargo/go-retry"
 )
 
+// create backoff object with maxRetries
 func NewBackoff(maxRetries uint64) retry.Backoff {
 	//init backoff
 	backoff := retry.NewExponential(1 * time.Second)
@@ -44,6 +46,7 @@ func CustomExponential(t time.Duration, next retry.Backoff) retry.BackoffFunc {
 	}
 }
 
+// attempt a retry
 func DoRetry(ctx context.Context, max uint64, f func(ctx context.Context) error) error {
 
 	backoff := NewBackoff(max)
@@ -53,6 +56,7 @@ func DoRetry(ctx context.Context, max uint64, f func(ctx context.Context) error)
 	return nil
 }
 
+// handle web retry errors with respective logging
 func HandleRetriableWeb(err error, retryMessage string) error {
 	if err != nil {
 		logger.Error(fmt.Sprintf("%s, retry: %v", retryMessage, err))
@@ -61,6 +65,7 @@ func HandleRetriableWeb(err error, retryMessage string) error {
 	return nil
 }
 
+// handle database retry errors with respective logging
 func HandleRetriableDB(err error, retryMessage string) error {
 	if err != nil {
 

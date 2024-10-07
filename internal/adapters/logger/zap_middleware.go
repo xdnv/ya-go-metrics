@@ -1,3 +1,4 @@
+// the logger middleware provides elaborate HTTP command logging with duration times
 package logger
 
 import (

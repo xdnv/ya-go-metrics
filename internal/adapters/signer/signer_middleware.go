@@ -1,3 +1,4 @@
+// the signer middleware provides transparent HTTP command signature validation
 package signer
 
 import (
@@ -12,6 +13,7 @@ import (
 	"internal/adapters/logger"
 )
 
+// provides message security check using stored signature
 func HandleSignedRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 

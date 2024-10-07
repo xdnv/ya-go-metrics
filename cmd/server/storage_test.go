@@ -68,6 +68,7 @@ func TestNewMemStorage(t *testing.T) {
 	// 		assert.Equal(t, tt.want.Value, GetMetricValue(testStorage.Metrics[tt.metricName]))
 	// 	})
 	// }
+
 	var testSc = new(app.ServerConfig)
 	testSc.StorageMode = app.Memory
 
