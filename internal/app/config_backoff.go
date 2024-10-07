@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"internal/adapters/logger"
 	"time"
+
+	"internal/adapters/logger"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"

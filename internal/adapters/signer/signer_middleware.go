@@ -6,9 +6,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"internal/adapters/logger"
 	"io"
 	"net/http"
+
+	"internal/adapters/logger"
 )
 
 func HandleSignedRequests(next http.Handler) http.Handler {

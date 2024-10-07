@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"internal/ports/storage"
 	"net/http"
+
+	"internal/ports/storage"
 )
 
 const indexPageTpl = `<html>

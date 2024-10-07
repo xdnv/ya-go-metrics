@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"internal/app"
 	"internal/domain"
-	"net/http"
 
 	"github.com/go-chi/chi/v5"
 )

@@ -3,9 +3,10 @@ package app
 import (
 	"flag"
 	"fmt"
-	"internal/adapters/signer"
 	"os"
 	"strconv"
+
+	"internal/adapters/signer"
 )
 
 // defines main session storage type based on server config given

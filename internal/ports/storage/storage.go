@@ -3,9 +3,10 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	"internal/domain"
 	"os"
 	"strconv"
+
+	"internal/domain"
 )
 
 // serializable storage class for JSON exchange

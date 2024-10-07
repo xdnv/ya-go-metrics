@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"internal/app"
 	"net/http"
+
+	"internal/app"
 )
 
 // HTTP request processing

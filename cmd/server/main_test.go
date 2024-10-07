@@ -1,13 +1,14 @@
 package main
 
 import (
-	"internal/app"
-	"internal/ports/storage"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"internal/app"
+	"internal/ports/storage"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

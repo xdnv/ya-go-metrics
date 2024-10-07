@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"internal/app"
-	"internal/domain"
 	"net/http"
 	"strings"
+
+	"internal/app"
+	"internal/domain"
 )
 
 // HTTP update processing

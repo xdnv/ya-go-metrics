@@ -7,10 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"internal/adapters/logger"
-	"internal/adapters/signer"
-	"internal/app"
-	"internal/domain"
 	"math/rand"
 	"net/http"
 	"os"
@@ -18,6 +14,11 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"internal/adapters/logger"
+	"internal/adapters/signer"
+	"internal/app"
+	"internal/domain"
 
 	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/cpu"

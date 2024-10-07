@@ -2,9 +2,10 @@ package app
 
 import (
 	"flag"
-	"internal/adapters/signer"
 	"os"
 	"strconv"
+
+	"internal/adapters/signer"
 )
 
 // agent config storage
