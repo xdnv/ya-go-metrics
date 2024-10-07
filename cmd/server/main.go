@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"regexp"
@@ -159,6 +160,11 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	mux.Post("/update/", handleUpdateMetricV2)
 	mux.Post("/update/{type}/{name}/{value}", handleUpdateMetricV1)
 	mux.Post("/updates/", handleUpdateMetrics)
+
+	mux.Mount("/debug/pprof/", http.HandlerFunc(pprof.Index))
+	mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+	mux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+	mux.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
 
 	// create a server
 	srv := &http.Server{Addr: sc.Endpoint, Handler: mux}
