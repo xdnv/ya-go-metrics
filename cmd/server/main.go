@@ -151,7 +151,9 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	mux.Use(logger.LoggerMiddleware)
 	mux.Use(handleGZIPRequests)
 	mux.Use(signer.HandleSignedRequests)
-	mux.Use(middleware.Compress(5, sc.CompressibleContentTypes...))
+	if sc.CompressReplies {
+		mux.Use(middleware.Compress(5, sc.CompressibleContentTypes...))
+	}
 
 	mux.Get("/", handleIndex)
 	mux.Get("/ping", handlePingDBServer)

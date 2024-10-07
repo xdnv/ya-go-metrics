@@ -102,7 +102,7 @@ func TestNewMemStorage(t *testing.T) {
 // MemStorage performance benchmark
 func BenchmarkMemStorage(b *testing.B) {
 	b.Run("gauges_update", func(b *testing.B) {
-		var v float64 = 0.2
+		var v = 0.2
 		n := "Gauge"
 		tm := &Gauge{Value: v}
 		for i := 0; i < b.N; i++ {
@@ -120,7 +120,7 @@ func BenchmarkMemStorage(b *testing.B) {
 		stor.SetMetric(n, tm)
 	})
 	b.Run("gauges_add", func(b *testing.B) {
-		var v float64 = 0.2
+		var v = 0.2
 		n := "Gauge"
 		for i := 0; i < b.N; i++ {
 			tm := &Gauge{Value: v}
