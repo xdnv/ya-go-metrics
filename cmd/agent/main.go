@@ -348,7 +348,7 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 
 	jsonres, jsonerr := json.Marshal(ma)
 	if jsonerr != nil {
-		logger.Error(fmt.Sprintf("ERROR: JSON marshaling failed [%s]", jsonerr))
+		logger.Error(fmt.Sprintf("sendMetrics ERROR: JSON marshaling failed [%s]", jsonerr))
 		return nil, jsonerr
 	}
 
@@ -363,6 +363,7 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 		resp = bresp //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
 		if err == nil {
 			bresp.Body.Close() //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
+			logger.Error(fmt.Sprintf("sendMetrics ERROR: %s", err.Error()))
 		}
 
 		return app.HandleRetriableWeb(err, "error sending data")
