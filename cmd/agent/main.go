@@ -70,6 +70,8 @@ func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*
 	if err != nil {
 		return nil, err
 	}
+	r.Close = true //whether to close the connection after replying to this request (for servers) or after sending the request (for clients).
+
 	r.Header.Set("Content-Type", contentType)
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
@@ -363,9 +365,6 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 		resp = bresp //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
 		if err == nil {
 			bresp.Body.Close() //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
-		}
-		if err != nil {
-			logger.Error(fmt.Sprintf("sendMetrics ERROR: %s", err.Error()))
 		}
 
 		return app.HandleRetriableWeb(err, "error sending data")
