@@ -18,7 +18,7 @@ func handleUpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	var errs []error
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		fmt.Printf("DECODE ERROR: %s", err.Error())
+		fmt.Printf("handleUpdateMetrics decode error: %s", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -31,6 +31,7 @@ func handleUpdateMetrics(w http.ResponseWriter, r *http.Request) {
 		for i, err := range errs {
 			strErrors[i] = err.Error()
 		}
+		fmt.Printf("handleUpdateMetrics errors: %s", strings.Join(strErrors, "\n"))
 
 		http.Error(w, "Errors: \n"+strings.Join(strErrors, "\n"), http.StatusBadRequest)
 		return
