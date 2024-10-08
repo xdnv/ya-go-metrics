@@ -148,7 +148,6 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	go stateDumper(ctx, sc, wg)
 
 	mux := chi.NewRouter()
-	//mux.Use(middleware.Logger)
 	mux.Use(logger.LoggerMiddleware)
 	mux.Use(handleGZIPRequests)
 	mux.Use(signer.HandleSignedRequests)
@@ -176,7 +175,6 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 		// service connections
 		if err := srv.ListenAndServe(); err != nil {
 			logger.Error(fmt.Sprintf("Listen: %s\n", err))
-			//log.Fatal(err)
 		}
 	}()
 

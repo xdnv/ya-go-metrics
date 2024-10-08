@@ -1,3 +1,4 @@
+// metric storage objects
 package domain
 
 import "sync"

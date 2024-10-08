@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"internal/domain"
 
 	"github.com/go-chi/chi/v5"
 )
 
-// HTTP request processing
+// HTTP single metric request v1 processing
 func handleRequestMetricV1(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
@@ -45,7 +46,7 @@ func handleRequestMetricV1(w http.ResponseWriter, r *http.Request) {
 	//w.WriteHeader(http.StatusOK)
 }
 
-// HTTP request processing
+// HTTP single metric request v2 processing
 func handleRequestMetricV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -54,6 +55,11 @@ func handleRequestMetricV2(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 		fmt.Printf("TRACE ERROR: %s", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(m.ID) == "" {
+		http.Error(w, "DECODE ERROR: empty metric id", http.StatusBadRequest)
 		return
 	}
 

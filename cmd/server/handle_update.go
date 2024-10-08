@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"internal/app"
 	"internal/domain"
@@ -11,7 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// HTTP update processing
+// HTTP single metric update v1 processing
 func handleUpdateMetricV1(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
@@ -37,15 +38,20 @@ func handleUpdateMetricV1(w http.ResponseWriter, r *http.Request) {
 	//w.WriteHeader(http.StatusOK)
 }
 
-// HTTP update processing
+// HTTP single metric update v2 processing
 func handleUpdateMetricV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var m domain.Metrics
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		fmt.Printf("DECODE ERROR: %s", err.Error())
+		fmt.Printf("DECODE ERROR: %s\n", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(m.ID) == "" {
+		http.Error(w, "DECODE ERROR: empty metric id", http.StatusBadRequest)
 		return
 	}
 
@@ -64,7 +70,7 @@ func handleUpdateMetricV2(w http.ResponseWriter, r *http.Request) {
 
 	err := stor.UpdateMetricS(mr.Type, mr.Name, mr.Value)
 	if err != nil {
-		fmt.Printf("UPDATE ERROR: %s", err.Error())
+		fmt.Printf("UPDATE ERROR: %s\n", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

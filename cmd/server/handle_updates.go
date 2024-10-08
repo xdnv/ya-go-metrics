@@ -10,7 +10,7 @@ import (
 	"internal/domain"
 )
 
-// HTTP update processing
+// HTTP mass metric update processing
 func handleUpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 

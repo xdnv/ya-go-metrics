@@ -8,9 +8,9 @@ import (
 
 // main signer object to store security configuration
 type SignerObject struct {
-	UseSignedMessaging    bool   //enables or disables use of signature
-	StrictSignedMessaging bool   //YP compatibility flag to pass failed check with warning
-	MsgKey                string //
+	UseSignedMessaging    bool   // enables or disables use of signature
+	StrictSignedMessaging bool   // YP compatibility flag to pass failed check with warning
+	MsgKey                string // secret key to encode payload
 }
 
 var signer *SignerObject
@@ -31,13 +31,13 @@ func UseSignedMessaging() bool {
 	return signer.UseSignedMessaging
 }
 
-// get signature for binary pauload using stored security key
+// get signature for binary payload using stored security key
 func GetSignature(payload []byte) ([]byte, error) {
 	key := []byte(signer.MsgKey)
 	return GetSignatureByKey(payload, key)
 }
 
-// get signature for binary pauload using provided security key
+// get signature for binary payload using provided security key
 func GetSignatureByKey(payload []byte, key []byte) ([]byte, error) {
 	h := hmac.New(sha256.New, key)
 	_, err := h.Write(payload)
@@ -47,7 +47,7 @@ func GetSignatureByKey(payload []byte, key []byte) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// return type of signature used
+// get HTTP request header used to store signature
 func GetSignatureToken() string {
 	return "HashSHA256"
 }
