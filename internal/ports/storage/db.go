@@ -1,3 +1,4 @@
+// the storage db package provides metric database layer
 package storage
 
 import (
@@ -5,8 +6,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"internal/domain"
 	"strconv"
+
+	"internal/domain"
 
 	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -23,6 +25,7 @@ func NewDbStorage(conn *sql.DB) *DbStorage {
 	return &DbStorage{conn: conn}
 }
 
+// close DB connection
 func (t DbStorage) Close() {
 	t.conn.Close()
 }
@@ -141,6 +144,7 @@ func (t DbStorage) Bootstrap(ctx context.Context) error {
 	return tx.Commit()
 }
 
+// ping database
 func (t DbStorage) Ping(ctx context.Context) error {
 	return t.conn.PingContext(ctx)
 }
@@ -180,6 +184,7 @@ func (t DbStorage) SetMetric(ctx context.Context, name string, metric Metric) er
 	return err
 }
 
+// update metric using string-represented value
 func (t DbStorage) UpdateMetricS(ctx context.Context, mType string, mName string, mValue string) error {
 
 	var val interface{}
@@ -223,6 +228,7 @@ func (t DbStorage) UpdateMetricS(ctx context.Context, mType string, mName string
 	return err
 }
 
+// update single metric in transaction provided
 func (t DbStorage) UpdateMetricTransact(ctx context.Context, tx *sql.Tx, mType string, mName string, mValue interface{}) error {
 
 	var val interface{}
@@ -260,6 +266,7 @@ func (t DbStorage) UpdateMetricTransact(ctx context.Context, tx *sql.Tx, mType s
 	return err
 }
 
+// mass metric update with transaction control
 func (t DbStorage) BatchUpdateMetrics(ctx context.Context, m *[]domain.Metrics, errs *[]error) (*[]domain.Metrics, error) {
 
 	// begin transaction
@@ -296,6 +303,7 @@ func (t DbStorage) BatchUpdateMetrics(ctx context.Context, m *[]domain.Metrics, 
 	return m, err
 }
 
+// get metric object by its name
 func (t DbStorage) GetMetric(ctx context.Context, id string) (Metric, error) {
 
 	query := t.getMetricQuery(true)
@@ -337,7 +345,7 @@ func (t DbStorage) GetMetric(ctx context.Context, id string) (Metric, error) {
 	return metric, nil
 }
 
-// Get a copy of Metric storage
+// get a copy of Metric storage
 func (t DbStorage) GetMetrics(ctx context.Context) (map[string]Metric, error) {
 
 	// Create the target map

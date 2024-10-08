@@ -1,6 +1,6 @@
 module signer
 
-go 1.21.5
+go 1.22.7
 
 require internal/adapters/logger v1.0.0
 

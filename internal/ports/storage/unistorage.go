@@ -1,3 +1,4 @@
+// the (uni))storage module provides abstraction interface for both in-memory and DB metric storage
 package storage
 
 import (
@@ -49,6 +50,7 @@ func NewUniStorage(cf *app.ServerConfig) *UniStorage {
 	}
 }
 
+// prepare database (if applicable)
 func (t UniStorage) Bootstrap() error {
 	if t.config.StorageMode == app.Database {
 		return t.db.Bootstrap(t.ctx)
@@ -57,12 +59,14 @@ func (t UniStorage) Bootstrap() error {
 	return nil
 }
 
+// close DB connection or file
 func (t UniStorage) Close() {
 	if t.config.StorageMode == app.Database {
 		t.db.Close()
 	}
 }
 
+// ping database
 func (t UniStorage) Ping() error {
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
@@ -84,6 +88,7 @@ func (t UniStorage) Ping() error {
 	}
 }
 
+// set metric by metric object provided
 func (t UniStorage) SetMetric(name string, metric Metric) {
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
@@ -104,6 +109,7 @@ func (t UniStorage) SetMetric(name string, metric Metric) {
 	}
 }
 
+// load metric storage state from file
 func (t UniStorage) LoadState(path string) error {
 	if t.config.StorageMode == app.Database {
 		//not needed in DB mode
@@ -113,6 +119,7 @@ func (t UniStorage) LoadState(path string) error {
 	}
 }
 
+// save metric storage state to file
 func (t UniStorage) SaveState(path string) error {
 	if t.config.StorageMode == app.Database {
 		//not needed in DB mode
@@ -122,6 +129,7 @@ func (t UniStorage) SaveState(path string) error {
 	}
 }
 
+// get metric by its name
 func (t UniStorage) GetMetric(id string) (Metric, error) {
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
@@ -183,6 +191,7 @@ func (t UniStorage) GetMetrics() map[string]Metric {
 	return targetMap
 }
 
+// update metric using string-represented value
 func (t UniStorage) UpdateMetricS(mType string, mName string, mValue string) error {
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)
@@ -204,6 +213,7 @@ func (t UniStorage) UpdateMetricS(mType string, mName string, mValue string) err
 	}
 }
 
+// mass metric update
 func (t UniStorage) BatchUpdateMetrics(m *[]domain.Metrics, errs *[]error) *[]domain.Metrics {
 	if t.config.StorageMode == app.Database {
 		dbctx, cancel := context.WithTimeout(t.ctx, t.timeout)

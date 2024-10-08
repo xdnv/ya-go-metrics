@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	"internal/app"
@@ -67,6 +68,7 @@ func TestNewMemStorage(t *testing.T) {
 	// 		assert.Equal(t, tt.want.Value, GetMetricValue(testStorage.Metrics[tt.metricName]))
 	// 	})
 	// }
+
 	var testSc = new(app.ServerConfig)
 	testSc.StorageMode = app.Memory
 
@@ -96,4 +98,42 @@ func TestNewMemStorage(t *testing.T) {
 			assert.Equal(t, tt.want.Value, metric.GetValue())
 		})
 	}
+}
+
+// MemStorage performance benchmark
+func BenchmarkMemStorage(b *testing.B) {
+	b.Run("gauges_update", func(b *testing.B) {
+		var v = 0.2
+		n := "Gauge"
+		tm := &Gauge{Value: v}
+		for i := 0; i < b.N; i++ {
+			tm.UpdateValue(v)
+		}
+		stor.SetMetric(n, tm)
+	})
+	b.Run("counters_update", func(b *testing.B) {
+		var v int64 = 1
+		n := "Counter"
+		tm := &Counter{Value: v}
+		for i := 0; i < b.N; i++ {
+			tm.UpdateValue(v)
+		}
+		stor.SetMetric(n, tm)
+	})
+	b.Run("gauges_add", func(b *testing.B) {
+		var v = 0.2
+		n := "Gauge"
+		for i := 0; i < b.N; i++ {
+			tm := &Gauge{Value: v}
+			stor.SetMetric(n+strconv.Itoa(i), tm)
+		}
+	})
+	b.Run("counters_add", func(b *testing.B) {
+		var v int64 = 1
+		n := "Counter"
+		for i := 0; i < b.N; i++ {
+			tm := &Counter{Value: v}
+			stor.SetMetric(n+strconv.Itoa(i), tm)
+		}
+	})
 }

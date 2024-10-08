@@ -1,3 +1,4 @@
+// the logger module provides structured log data output using ZAP
 package logger
 
 import (
@@ -26,22 +27,27 @@ func init() {
 	}
 }
 
+// provides info level logging
 func Info(message string, fields ...zap.Field) {
 	zapLog.Info(message, fields...)
 }
 
+// provides debug level logging
 func Debug(message string, fields ...zap.Field) {
 	zapLog.Debug(message, fields...)
 }
 
+// provides error level logging
 func Error(message string, fields ...zap.Field) {
 	zapLog.Error(message, fields...)
 }
 
+// provides fatal level logging
 func Fatal(message string, fields ...zap.Field) {
 	zapLog.Fatal(message, fields...)
 }
 
+// does log sync to prevent buffered data loss
 func Sync() {
 	zapLog.Sync()
 }

@@ -1,3 +1,4 @@
+// the main server module provides server (metric storage and update) function
 package main
 
 import (
@@ -7,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"regexp"
@@ -26,7 +28,6 @@ import (
 
 var sc app.ServerConfig
 
-// var stor = storage.NewMemStorage()
 var stor *storage.UniStorage
 
 func handleGZIPRequests(next http.Handler) http.Handler {
@@ -80,7 +81,7 @@ func main() {
 		logger.Fatal(fmt.Sprintf("srv: post-init bootstrap failed, error: %s\n", err))
 	}
 
-	// run `server` in it's own goroutine
+	// run `server` in its own goroutine
 	wg.Add(1)
 	go server(ctx, &wg)
 
@@ -93,17 +94,15 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
-	//fmt.Println("srv: received ^C - shutting down")
 	logger.Info("srv: received ^C - shutting down")
 
 	// tell the goroutines to stop
-	//fmt.Println("srv: telling goroutines to stop")
 	logger.Info("srv: telling goroutines to stop")
 	cancel()
 
 	// and wait for them to reply back
 	wg.Wait()
-	//fmt.Println("srv: shutdown")
+
 	logger.Info("srv: shutdown")
 }
 
@@ -149,19 +148,25 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	go stateDumper(ctx, sc, wg)
 
 	mux := chi.NewRouter()
-	//mux.Use(middleware.Logger)
 	mux.Use(logger.LoggerMiddleware)
 	mux.Use(handleGZIPRequests)
 	mux.Use(signer.HandleSignedRequests)
-	mux.Use(middleware.Compress(5, sc.CompressibleContentTypes...))
+	if sc.CompressReplies {
+		mux.Use(middleware.Compress(5, sc.CompressibleContentTypes...))
+	}
 
 	mux.Get("/", handleIndex)
-	mux.Get("/ping", pingDBServer)
-	mux.Post("/value/", requestMetricV2)
-	mux.Get("/value/{type}/{name}", requestMetricV1)
-	mux.Post("/update/", updateMetricV2)
-	mux.Post("/update/{type}/{name}/{value}", updateMetricV1)
-	mux.Post("/updates/", updateMetrics)
+	mux.Get("/ping", handlePingDBServer)
+	mux.Post("/value/", handleRequestMetricV2)
+	mux.Get("/value/{type}/{name}", handleRequestMetricV1)
+	mux.Post("/update/", handleUpdateMetricV2)
+	mux.Post("/update/{type}/{name}/{value}", handleUpdateMetricV1)
+	mux.Post("/updates/", handleUpdateMetrics)
+
+	mux.Mount("/debug/pprof/", http.HandlerFunc(pprof.Index))
+	mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+	mux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+	mux.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
 
 	// create a server
 	srv := &http.Server{Addr: sc.Endpoint, Handler: mux}
@@ -169,14 +174,11 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	go func() {
 		// service connections
 		if err := srv.ListenAndServe(); err != nil {
-			//fmt.Printf("Listen: %s\n", err)
 			logger.Error(fmt.Sprintf("Listen: %s\n", err))
-			//log.Fatal(err)
 		}
 	}()
 
 	<-ctx.Done()
-	//fmt.Println("srv: shutdown requested")
 	logger.Info("srv: shutdown requested")
 
 	// shut down gracefully with timeout of 5 seconds max
@@ -190,7 +192,6 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	if sc.StorageMode == app.File {
 		err := stor.SaveState(sc.FileStoragePath)
 		if err != nil {
-			//fmt.Printf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
 			logger.Error(fmt.Sprintf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
 		}
 	}
@@ -213,16 +214,13 @@ func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
 	for {
 		select {
 		case now := <-ticker.C:
-			//fmt.Printf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05"))
 			logger.Info(fmt.Sprintf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05")))
 
 			err := stor.SaveState(sc.FileStoragePath)
 			if err != nil {
-				//fmt.Printf("srv-dumper: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
 				logger.Error(fmt.Sprintf("srv-dumper: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
 			}
 		case <-ctx.Done():
-			//fmt.Println("srv-dumper: stop requested")
 			logger.Info("srv-dumper: stop requested")
 			return
 		}

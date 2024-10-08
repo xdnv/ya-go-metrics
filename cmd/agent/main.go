@@ -1,3 +1,4 @@
+// the main agent module provides agent (metric sender) function
 package main
 
 import (
@@ -7,10 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"internal/adapters/logger"
-	"internal/adapters/signer"
-	"internal/app"
-	"internal/domain"
 	"math/rand"
 	"net/http"
 	"os"
@@ -18,6 +15,11 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"internal/adapters/logger"
+	"internal/adapters/signer"
+	"internal/app"
+	"internal/domain"
 
 	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -27,6 +29,7 @@ import (
 var ac app.AgentConfig
 var sendJobs chan uuid.UUID
 
+// HTTP post metric value using API v1
 func PostValueV1(ctx context.Context, ac app.AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
 	address := fmt.Sprintf("http://%s/update/%s/%s/%s", ac.Endpoint, counterType, counterName, value)
 	resp, err := http.Post(address, "text/plain", nil)
@@ -36,6 +39,7 @@ func PostValueV1(ctx context.Context, ac app.AgentConfig, counterType string, co
 	return resp, nil
 }
 
+// HTTP post metric value using API v2
 func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error) {
 	contentType := "application/json"
 

@@ -3,14 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"internal/app"
-	"internal/domain"
 	"net/http"
 	"strings"
+
+	"internal/app"
+	"internal/domain"
 )
 
-// HTTP update processing
-func updateMetrics(w http.ResponseWriter, r *http.Request) {
+// HTTP mass metric update processing
+func handleUpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var m []domain.Metrics

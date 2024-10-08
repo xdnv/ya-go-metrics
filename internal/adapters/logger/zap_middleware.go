@@ -1,3 +1,4 @@
+// the logger middleware provides elaborate HTTP command logging with duration times
 package logger
 
 import (
@@ -7,20 +8,24 @@ import (
 	"go.uber.org/zap"
 )
 
+// ResponseWriter object with additional fields (i.e. HTTP status code)
 type ResponseWriter struct {
-	http.ResponseWriter
-	status int
+	http.ResponseWriter     // next ResponseWriter in middleware chain
+	status              int // HTTP status code
 }
 
+// ResponseWriter fabric
 func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
 	return &ResponseWriter{w, http.StatusOK}
 }
 
+// embed additional ResponseWriter fields
 func (rw *ResponseWriter) WriteHeader(code int) {
 	rw.status = code
 	rw.ResponseWriter.WriteHeader(code)
 }
 
+// main logger middleware function
 func LoggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer zapLog.Sync()

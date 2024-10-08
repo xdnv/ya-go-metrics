@@ -1,22 +1,26 @@
+// server configuration module provides app-wide configuration structure with easy init
 package app
 
 import (
 	"flag"
 	"fmt"
-	"internal/adapters/signer"
 	"os"
 	"strconv"
+
+	"internal/adapters/signer"
 )
 
 // defines main session storage type based on server config given
 type StorageType int
 
+// session storage type
 const (
 	Memory StorageType = iota
 	File
 	Database
 )
 
+// return session storage type as string value
 func (t StorageType) String() string {
 	switch t {
 	case Memory:
@@ -29,6 +33,7 @@ func (t StorageType) String() string {
 	return fmt.Sprintf("Unknown (%d)", t)
 }
 
+// server configuration
 type ServerConfig struct {
 	Endpoint                 string
 	StoreInterval            int64
@@ -37,6 +42,7 @@ type ServerConfig struct {
 	RestoreMetrics           bool
 	DatabaseDSN              string
 	LogLevel                 string
+	CompressReplies          bool
 	CompressibleContentTypes []string
 	MaxConnectionRetries     uint64
 }
@@ -57,6 +63,7 @@ func InitServerConfig() ServerConfig {
 	flag.StringVar(&MsgKey, "k", "", "key to use signed messaging, empty value disables signing")
 	flag.StringVar(&cf.FileStoragePath, "f", "/tmp/metrics-db.json", "full datafile path to store/load state of metrics. empty value shuts off metric dumps")
 	flag.BoolVar(&cf.RestoreMetrics, "r", true, "load metrics from datafile on server start, boolean")
+	flag.BoolVar(&cf.CompressReplies, "c", true, "compress server replies, boolean")
 	flag.StringVar(&cf.LogLevel, "l", "info", "log level")
 	flag.Parse()
 
@@ -73,6 +80,12 @@ func InitServerConfig() ServerConfig {
 		cf.FileStoragePath = val
 	}
 	if val, found := os.LookupEnv("RESTORE"); found {
+		boolval, err := strconv.ParseBool(val)
+		if err == nil {
+			cf.CompressReplies = boolval
+		}
+	}
+	if val, found := os.LookupEnv("COMPRESS_REPLIES"); found {
 		boolval, err := strconv.ParseBool(val)
 		if err == nil {
 			cf.RestoreMetrics = boolval

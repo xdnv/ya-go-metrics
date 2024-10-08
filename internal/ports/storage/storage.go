@@ -1,11 +1,13 @@
+// the (mem)storage module provides in-memory metric storage with save/load to file option
 package storage
 
 import (
 	"encoding/json"
 	"fmt"
-	"internal/domain"
 	"os"
 	"strconv"
+
+	"internal/domain"
 )
 
 // serializable storage class for JSON exchange
@@ -26,6 +28,7 @@ type Metric interface {
 	UpdateValueS(string) error
 }
 
+// get value of metric provided
 func GetMetricValue(t Metric) interface{} {
 	return t.GetValue()
 }
@@ -35,6 +38,7 @@ type MemStorage struct {
 	Metrics MetricMap
 }
 
+// update metric using string-represented value
 func (t MemStorage) UpdateMetricS(mType string, mName string, mValue string) error {
 	var metric Metric
 	var ok bool
@@ -64,6 +68,7 @@ func (t MemStorage) UpdateMetricS(mType string, mName string, mValue string) err
 	return nil
 }
 
+// mass metric update
 func (t MemStorage) BatchUpdateMetrics(m *[]domain.Metrics, errs *[]error) *[]domain.Metrics {
 
 	for _, v := range *m {
@@ -99,19 +104,23 @@ type Gauge struct {
 	Value float64
 }
 
+// get metric type as string
 func (t Gauge) GetType() string {
 	return "gauge"
 }
 
+// get metric value
 func (t Gauge) GetValue() interface{} {
 	return t.Value
 }
 
+// update metric value
 func (t *Gauge) UpdateValue(metricValue interface{}) {
 	//REPLACE value
 	t.Value = metricValue.(float64)
 }
 
+// update metric value using string value provided
 func (t *Gauge) UpdateValueS(metricValueS string) error {
 	val, err := strconv.ParseFloat(metricValueS, 64)
 	if err != nil {
@@ -128,19 +137,23 @@ type Counter struct {
 	Value int64
 }
 
+// get metric type as string
 func (t Counter) GetType() string {
 	return "counter"
 }
 
+// get metric value
 func (t Counter) GetValue() interface{} {
 	return t.Value
 }
 
+// update metric value
 func (t *Counter) UpdateValue(metricValue interface{}) {
 	//INCREMENT value
 	t.Value += metricValue.(int64)
 }
 
+// update metric value using string value provided
 func (t *Counter) UpdateValueS(metricValueS string) error {
 	val, err := strconv.ParseInt(metricValueS, 10, 64)
 	if err != nil {
@@ -159,6 +172,7 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
+// convert internal metric type to serializable one
 func (t MemStorage) GetSerializableMetric(name string) (*SerializableMetric, error) {
 
 	sm := new(SerializableMetric)
@@ -184,6 +198,7 @@ func (t MemStorage) GetSerializableMetric(name string) (*SerializableMetric, err
 	return sm, nil
 }
 
+// get metric storage as serializable object
 func (t MemStorage) GetSerializableStorage() ([]SerializableMetric, error) {
 
 	sma := []SerializableMetric{}

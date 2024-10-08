@@ -5,6 +5,7 @@ import (
 	"sort"
 )
 
+// add sort by key option to map
 func SortKeys[K cmp.Ordered, V any](m map[K]V) []K {
 	keys := make([]K, len(m))
 	i := 0
