@@ -27,8 +27,12 @@ import (
 )
 
 var sc app.ServerConfig
-
 var stor *storage.UniStorage
+
+// statically linked variables (YP iter20 requirement)
+var buildVersion string
+var buildDate string
+var buildCommit string
 
 func handleGZIPRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -109,6 +113,11 @@ func main() {
 func server(ctx context.Context, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
+
+	// statically linked variables (YP iter20 requirement)
+	fmt.Printf("Build version: %s\n", naIfEmpty(buildVersion))
+	fmt.Printf("Build date: %s\n", naIfEmpty(buildDate))
+	fmt.Printf("Build commit: %s\n", naIfEmpty(buildCommit))
 
 	logger.Info(fmt.Sprintf("srv: using endpoint %s", sc.Endpoint))
 	logger.Info(fmt.Sprintf("srv: storage mode = %v", sc.StorageMode))
@@ -227,4 +236,11 @@ func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
 		}
 	}
 
+}
+
+func naIfEmpty(s string) string {
+	if s == "" {
+		return "N/A"
+	}
+	return s
 }

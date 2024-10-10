@@ -29,6 +29,11 @@ import (
 var ac app.AgentConfig
 var sendJobs chan uuid.UUID
 
+// statically linked variables (YP iter20 requirement)
+var buildVersion string
+var buildDate string
+var buildCommit string
+
 // HTTP post metric value using API v1
 func PostValueV1(ctx context.Context, ac app.AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
 	address := fmt.Sprintf("http://%s/update/%s/%s/%s", ac.Endpoint, counterType, counterName, value)
@@ -420,6 +425,11 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
+	// statically linked variables (YP iter20 requirement)
+	fmt.Printf("Build version: %s\n", naIfEmpty(buildVersion))
+	fmt.Printf("Build date: %s\n", naIfEmpty(buildDate))
+	fmt.Printf("Build commit: %s\n", naIfEmpty(buildCommit))
+
 	fmt.Printf("agent: using endpoint %s\n", ac.Endpoint)
 	fmt.Printf("agent: poll interval %d\n", ac.PollInterval)
 	fmt.Printf("agent: report interval %d\n", ac.ReportInterval)
@@ -455,4 +465,11 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	// defer cancel()
 
 	fmt.Println("agent: stopped")
+}
+
+func naIfEmpty(s string) string {
+	if s == "" {
+		return "N/A"
+	}
+	return s
 }
