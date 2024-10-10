@@ -70,12 +70,13 @@ func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*
 	if err != nil {
 		return nil, err
 	}
+	defer r.Body.Close()
 	r.Close = true //whether to close the connection after replying to this request (for servers) or after sending the request (for clients).
 
 	r.Header.Set("Content-Type", contentType)
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
-	signMessage(r, body)
+	signMessage(r, body) //body has to be signed before compression since server checks signature of unpacked data
 	resp, err := http.DefaultClient.Do(r)
 
 	return resp, err
