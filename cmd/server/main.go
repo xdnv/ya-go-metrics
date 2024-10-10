@@ -111,8 +111,9 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	logger.Info(fmt.Sprintf("srv: using endpoint %s", sc.Endpoint))
-	logger.Info(fmt.Sprintf("srv: storage mode %v", sc.StorageMode))
-	logger.Info(fmt.Sprintf("srv: signed messaging=%v\n", signer.UseSignedMessaging()))
+	logger.Info(fmt.Sprintf("srv: storage mode = %v", sc.StorageMode))
+	logger.Info(fmt.Sprintf("srv: compress replies = %v %v", sc.CompressReplies, sc.CompressibleContentTypes))
+	logger.Info(fmt.Sprintf("srv: signed messaging = %v\n", signer.UseSignedMessaging()))
 
 	switch sc.StorageMode {
 	case app.Database:
