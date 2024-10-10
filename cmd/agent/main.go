@@ -368,11 +368,6 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 			bresp.Body.Close() //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
 		}
 
-		if resp.StatusCode != 200 {
-			fmt.Println("response Status:", resp.Status)
-			fmt.Println("response Headers:", resp.Header)
-		}
-
 		return app.HandleRetriableWeb(err, "error sending data")
 	}
 
