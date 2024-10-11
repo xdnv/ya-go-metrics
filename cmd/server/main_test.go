@@ -32,8 +32,8 @@ func Test_index(t *testing.T) {
 
 	type want struct {
 		contentType string
-		statusCode  int
 		bodyHeader  string
+		statusCode  int
 	}
 
 	tests := []struct {

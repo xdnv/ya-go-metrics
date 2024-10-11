@@ -77,7 +77,7 @@ func handleUpdateMetricV2(w http.ResponseWriter, r *http.Request) {
 
 	//save dump if set to immediate mode
 	if (sc.StorageMode == app.File) && (sc.StoreInterval == 0) {
-		err := stor.SaveState(sc.FileStoragePath)
+		err = stor.SaveState(sc.FileStoragePath)
 		if err != nil {
 			fmt.Printf("srv-updateMetricV2: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
 		}

@@ -35,6 +35,7 @@ replace internal/domain => ./internal/domain
 require (
 	github.com/google/uuid v1.6.0
 	github.com/shirou/gopsutil/v3 v3.24.3
+	golang.org/x/tools v0.26.0
 	internal/ports/storage v1.0.0
 )
 
@@ -55,6 +56,7 @@ require (
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/crypto v0.17.0 // indirect
+	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
