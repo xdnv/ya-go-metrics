@@ -7,6 +7,11 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/appends"
 	"golang.org/x/tools/go/analysis/passes/assign"
@@ -20,10 +25,33 @@ import (
 	"golang.org/x/tools/go/analysis/passes/shift"
 	"golang.org/x/tools/go/analysis/passes/structtag"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
+	"honnef.co/go/tools/staticcheck"
 )
 
+// Config file name
+const Config = `config.json`
+
+// ConfigData represents configuration object
+type ConfigData struct {
+	Staticcheck []string
+}
+
 func main() {
-	multichecker.Main(
+	appfile, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	data, err := os.ReadFile(filepath.Join(filepath.Dir(appfile), Config))
+	if err != nil {
+		panic(err)
+	}
+	var cfg ConfigData
+	if err = json.Unmarshal(data, &cfg); err != nil {
+		panic(err)
+	}
+
+	mychecks := []*analysis.Analyzer{
+		OsExitCheckAnalyzer,
 		appends.Analyzer,
 		assign.Analyzer,
 		atomic.Analyzer,
@@ -36,5 +64,20 @@ func main() {
 		shift.Analyzer,
 		structtag.Analyzer,
 		unusedresult.Analyzer,
+	}
+
+	checks := make(map[string]bool)
+	for _, v := range cfg.Staticcheck {
+		checks[v] = true
+	}
+	// add staticcheck analyzers from config file
+	for _, v := range staticcheck.Analyzers {
+		if checks[v.Analyzer.Name] {
+			mychecks = append(mychecks, v.Analyzer)
+		}
+	}
+
+	multichecker.Main(
+		mychecks...,
 	)
 }
