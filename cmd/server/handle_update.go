@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"internal/adapters/logger"
 	"internal/app"
 	"internal/domain"
 
@@ -23,7 +24,9 @@ func handleUpdateMetricV1(w http.ResponseWriter, r *http.Request) {
 
 	err := stor.UpdateMetricS(mr.Type, mr.Name, mr.Value)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errText := fmt.Sprintf("failed to update metric [%s][%s][%s], error: %s", mr.Type, mr.Name, mr.Value, err.Error())
+		logger.Error("handleUpdateMetricV1: " + errText)
+		http.Error(w, errText, http.StatusBadRequest)
 		return
 	}
 
@@ -31,7 +34,8 @@ func handleUpdateMetricV1(w http.ResponseWriter, r *http.Request) {
 	if (sc.StorageMode == app.File) && (sc.StoreInterval == 0) {
 		err := stor.SaveState(sc.FileStoragePath)
 		if err != nil {
-			fmt.Printf("srv-updateMetricV1: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+			errText := fmt.Sprintf("failed to save server state to [%s], error: %s", sc.FileStoragePath, err.Error())
+			logger.Error("handleUpdateMetricV1: " + errText)
 		}
 	}
 
@@ -45,13 +49,16 @@ func handleUpdateMetricV2(w http.ResponseWriter, r *http.Request) {
 	var m domain.Metrics
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		fmt.Printf("DECODE ERROR: %s\n", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errText := fmt.Sprintf("DECODE ERROR: %s", err.Error())
+		logger.Error("handleUpdateMetricV2: " + errText)
+		http.Error(w, errText, http.StatusBadRequest)
 		return
 	}
 
 	if strings.TrimSpace(m.ID) == "" {
-		http.Error(w, "DECODE ERROR: empty metric id", http.StatusBadRequest)
+		errText := "DECODE ERROR: empty metric id"
+		logger.Error("handleUpdateMetricV2: " + errText)
+		http.Error(w, errText, http.StatusBadRequest)
 		return
 	}
 
@@ -65,13 +72,16 @@ func handleUpdateMetricV2(w http.ResponseWriter, r *http.Request) {
 	case "counter":
 		mr.Value = fmt.Sprint(*m.Delta)
 	default:
-		http.Error(w, fmt.Sprintf("ERROR: unsupported metric type %s", mr.Type), http.StatusNotFound)
+		errText := fmt.Sprintf("ERROR: unsupported metric type %s", mr.Type)
+		logger.Error("handleUpdateMetricV2: " + errText)
+		http.Error(w, errText, http.StatusNotFound)
 	}
 
 	err := stor.UpdateMetricS(mr.Type, mr.Name, mr.Value)
 	if err != nil {
-		fmt.Printf("UPDATE ERROR: %s\n", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errText := fmt.Sprintf("failed to update metric [%s][%s][%s], error: %s", mr.Type, mr.Name, mr.Value, err.Error())
+		logger.Error("handleUpdateMetricV2: " + errText)
+		http.Error(w, errText, http.StatusBadRequest)
 		return
 	}
 
@@ -79,14 +89,17 @@ func handleUpdateMetricV2(w http.ResponseWriter, r *http.Request) {
 	if (sc.StorageMode == app.File) && (sc.StoreInterval == 0) {
 		err = stor.SaveState(sc.FileStoragePath)
 		if err != nil {
-			fmt.Printf("srv-updateMetricV2: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+			errText := fmt.Sprintf("failed to save server state to [%s], error: %s", sc.FileStoragePath, err.Error())
+			logger.Error("handleUpdateMetricV2: " + errText)
 		}
 	}
 
 	// metric := stor.Metrics[mr.Name]
 	metric, err := stor.GetMetric(mr.Name)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errText := fmt.Sprintf("failed to get metric [%s], error: %s", mr.Name, err.Error())
+		logger.Error("handleUpdateMetricV2: " + errText)
+		http.Error(w, errText, http.StatusInternalServerError)
 		return
 	}
 
@@ -101,7 +114,9 @@ func handleUpdateMetricV2(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(m)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errText := fmt.Sprintf("ENCODE ERROR: %s", err.Error())
+		logger.Error("handleUpdateMetricV2: " + errText)
+		http.Error(w, errText, http.StatusInternalServerError)
 		return
 	}
 

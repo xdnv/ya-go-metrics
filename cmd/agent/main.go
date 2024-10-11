@@ -114,8 +114,8 @@ func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 
 	for {
 		select {
-		case now := <-ticker.C:
-			fmt.Printf("TRACE: collect metrics [%s]\n", now.Format("2006-01-02 15:04:05"))
+		case <-ticker.C:
+			logger.Info("agent-collector: collect metrics")
 
 			// Read full mem stats
 			runtime.ReadMemStats(&rtm)
@@ -173,7 +173,7 @@ func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 
 			ms.Unlock()
 		case <-ctx.Done():
-			fmt.Println("agent-collector: stop requested")
+			logger.Info("agent-collector: stop requested")
 			return
 		}
 	}
@@ -188,8 +188,8 @@ func collectorPs(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 
 	for {
 		select {
-		case now := <-ticker.C:
-			fmt.Printf("TRACE: collect PS metrics [%s]\n", now.Format("2006-01-02 15:04:05"))
+		case <-ticker.C:
+			logger.Info("agent-collectorPs: collect PS metrics")
 
 			// add metrics from gopsutil
 			vm, err := mem.VirtualMemory()
@@ -210,7 +210,7 @@ func collectorPs(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 
 			ms.Unlock()
 		case <-ctx.Done():
-			fmt.Println("agent-collector-ps: stop requested")
+			logger.Info("agent-collector-ps: stop requested")
 			return
 		}
 	}
@@ -225,16 +225,16 @@ func reporter(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 
 	for {
 		select {
-		case now := <-ticker.C:
+		case <-ticker.C:
 			if !ac.UseRateLimit {
-				fmt.Printf("TRACE: send metrics [%s]\n", now.Format("2006-01-02 15:04:05"))
+				logger.Info("agent-reporter: send metrics")
 				sendPayload(ctx, ac, ms)
 			} else {
-				fmt.Printf("TRACE: send metrics rated [%s]\n", now.Format("2006-01-02 15:04:05"))
+				logger.Info("agent-reporter: send metrics rated")
 				sendJobs <- uuid.New()
 			}
 		case <-ctx.Done():
-			fmt.Println("agent-reporter: stop requested")
+			logger.Info("agent-reporter: stop requested")
 			return
 		}
 	}
@@ -292,10 +292,10 @@ func sendPayload(ctx context.Context, ac app.AgentConfig, m *domain.MetricStorag
 func payloadSender(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup, id int, jobs <-chan uuid.UUID) {
 	defer wg.Done()
 
-	fmt.Printf("rated-sender(%d): init\n", id)
+	logger.Debug(fmt.Sprintf("rated-sender(%d): init", id))
 
 	for uid := range jobs {
-		fmt.Printf("rated-sender(%d): send metrics [%s]\n", id, uid)
+		logger.Info(fmt.Sprintf("rated-sender(%d): send metrics [%s]", id, uid))
 
 		sendPayload(ctx, ac, ms)
 
@@ -303,7 +303,7 @@ func payloadSender(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup, 
 		//results <- nil
 	}
 
-	fmt.Printf("rated-sender(%d): channel closed\n", id)
+	logger.Debug(fmt.Sprintf("rated-sender(%d): channel closed", id))
 }
 
 func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics) (*http.Response, error) {
@@ -320,33 +320,34 @@ func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics)
 		case "counter":
 			vs = fmt.Sprintf("%d", *metric.Delta)
 		default:
-			fmt.Printf("ERROR: unsupported metric type [%s]\n", metric.MType)
+			logger.Error(fmt.Sprintf("sendMetric ERROR: unsupported metric type [%s]", metric.MType))
 		}
 
 		resp, err = PostValueV1(ctx, ac, metric.MType, metric.ID, vs)
 	case "v2":
 		jsonres, jsonerr := json.Marshal(metric)
 		if jsonerr != nil {
-			fmt.Printf("ERROR: JSON marshaling failed [%s]\n", jsonerr)
+			logger.Error(fmt.Sprintf("sendMetric ERROR: JSON marshaling failed [%s]", jsonerr))
 			return nil, jsonerr
 		}
 
 		buf := bytes.NewBuffer(jsonres)
 
-		fmt.Printf("TRACE: POST body %s\n", buf)
+		logger.Debug(fmt.Sprintf("sendMetric: POST body %s", buf))
 
 		resp, err = PostValueV2(ctx, ac, buf)
 	default:
-		fmt.Printf("ERROR: unsupported API version %s", ac.APIVersion)
+		logger.Error(fmt.Sprintf("sendMetric ERROR: unsupported API version %s", ac.APIVersion))
 	}
 
 	if err != nil {
-		fmt.Printf("ERROR posting value: %s, %s\n", metric.ID, err)
+		logger.Error(fmt.Sprintf("sendMetric ERROR posting value: %s, %s", metric.ID, err))
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		fmt.Println("response Status:", resp.Status)
-		fmt.Println("response Headers:", resp.Header)
+		logger.Info(fmt.Sprintf("response Code: %v", resp.StatusCode))
+		logger.Info(fmt.Sprintf("response Status: %v", resp.Status))
+		logger.Info(fmt.Sprintf("response Headers: %v", resp.Header))
 	}
 	return resp, err
 }
@@ -362,7 +363,7 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 
 	buf := bytes.NewBuffer(jsonres)
 
-	fmt.Printf("TRACE: POST body %s\n", buf)
+	logger.Debug(fmt.Sprintf("sendMetrics: POST body %s", buf))
 
 	backoff := func(ctx context.Context) error {
 		//var err error
@@ -383,8 +384,9 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 	}
 
 	if resp.StatusCode != 200 {
-		fmt.Println("response Status:", resp.Status)
-		fmt.Println("response Headers:", resp.Header)
+		logger.Info(fmt.Sprintf("response Code: %v", resp.StatusCode))
+		logger.Info(fmt.Sprintf("response Status: %v", resp.Status))
+		logger.Info(fmt.Sprintf("response Headers: %v", resp.Header))
 	}
 	return resp, nil
 }
@@ -410,15 +412,15 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
-	fmt.Println("agent: received ^C - shutting down")
+	logger.Info("agent: received ^C - shutting down")
 
 	// tell the goroutines to stop
-	fmt.Println("agent: telling goroutines to stop")
+	logger.Info("agent: telling goroutines to stop")
 	cancel()
 
 	// and wait for them to reply back
 	wg.Wait()
-	fmt.Println("agent: shutdown")
+	logger.Info("agent: shutdown")
 }
 
 func agent(ctx context.Context, wg *sync.WaitGroup) {
@@ -426,15 +428,15 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// statically linked variables (YP iter20 requirement)
-	fmt.Printf("Build version: %s\n", naIfEmpty(buildVersion))
-	fmt.Printf("Build date: %s\n", naIfEmpty(buildDate))
-	fmt.Printf("Build commit: %s\n", naIfEmpty(buildCommit))
+	logger.Info(fmt.Sprintf("Build version: %s", naIfEmpty(buildVersion)))
+	logger.Info(fmt.Sprintf("Build date: %s", naIfEmpty(buildDate)))
+	logger.Info(fmt.Sprintf("Build commit: %s", naIfEmpty(buildCommit)))
 
-	fmt.Printf("agent: using endpoint %s\n", ac.Endpoint)
-	fmt.Printf("agent: poll interval %d\n", ac.PollInterval)
-	fmt.Printf("agent: report interval %d\n", ac.ReportInterval)
-	fmt.Printf("agent: signed messaging=%v\n", signer.UseSignedMessaging())
-	fmt.Printf("agent: rate limit=%v\n", ac.RateLimit)
+	logger.Info(fmt.Sprintf("agent: using endpoint %s", ac.Endpoint))
+	logger.Info(fmt.Sprintf("agent: poll interval %d", ac.PollInterval))
+	logger.Info(fmt.Sprintf("agent: report interval %d", ac.ReportInterval))
+	logger.Info(fmt.Sprintf("agent: signed messaging=%v", signer.UseSignedMessaging()))
+	logger.Info(fmt.Sprintf("agent: rate limit=%v", ac.RateLimit))
 
 	//add optional rate limiter as required by technical specs
 	if ac.UseRateLimit {
@@ -453,7 +455,7 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	go reporter(ctx, ac, wg)
 
 	<-ctx.Done()
-	fmt.Println("agent: shutdown requested")
+	logger.Info("agent: shutdown requested")
 
 	// close channel on exit
 	if ac.UseRateLimit {
@@ -464,7 +466,7 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	// _, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	// defer cancel()
 
-	fmt.Println("agent: stopped")
+	logger.Info("agent: stopped")
 }
 
 func naIfEmpty(s string) string {

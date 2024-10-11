@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"internal/adapters/logger"
 	"internal/domain"
 
 	"github.com/go-chi/chi/v5"
@@ -24,7 +25,9 @@ func handleRequestMetricV1(w http.ResponseWriter, r *http.Request) {
 	case "gauge":
 	case "counter":
 	default:
-		http.Error(w, fmt.Sprintf("unexpected metric type: %s", mr.Type), http.StatusBadRequest)
+		errText := fmt.Sprintf("unexpected metric type: %s", mr.Type)
+		logger.Error("handleRequestMetricV1: " + errText)
+		http.Error(w, errText, http.StatusBadRequest)
 		return
 	}
 
@@ -35,7 +38,9 @@ func handleRequestMetricV1(w http.ResponseWriter, r *http.Request) {
 	// }
 	metric, err := stor.GetMetric(mr.Name)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		errText := fmt.Sprintf("ERROR getting metric [%s]: %s", mr.Name, err.Error())
+		logger.Error("handleRequestMetricV1: " + errText)
+		http.Error(w, errText, http.StatusNotFound)
 		return
 	}
 
@@ -53,12 +58,15 @@ func handleRequestMetricV2(w http.ResponseWriter, r *http.Request) {
 	var m domain.Metrics
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		fmt.Printf("TRACE ERROR: %s", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errText := fmt.Sprintf("DECODE ERROR: %s", err.Error())
+		logger.Error("handleRequestMetricV2: " + errText)
+		http.Error(w, errText, http.StatusBadRequest)
 		return
 	}
 
 	if strings.TrimSpace(m.ID) == "" {
+		errText := "DECODE ERROR: empty metric id"
+		logger.Error("handleRequestMetricV2: " + errText)
 		http.Error(w, "DECODE ERROR: empty metric id", http.StatusBadRequest)
 		return
 	}
@@ -72,7 +80,9 @@ func handleRequestMetricV2(w http.ResponseWriter, r *http.Request) {
 	case "gauge":
 	case "counter":
 	default:
-		http.Error(w, fmt.Sprintf("unexpected metric type: %s", mr.Type), http.StatusNotFound)
+		errText := fmt.Sprintf("unexpected metric type: %s", mr.Type)
+		logger.Error("handleRequestMetricV2: " + errText)
+		http.Error(w, errText, http.StatusNotFound)
 		return
 	}
 
@@ -84,7 +94,9 @@ func handleRequestMetricV2(w http.ResponseWriter, r *http.Request) {
 
 	metric, err := stor.GetMetric(mr.Name)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		errText := fmt.Sprintf("ERROR getting metric [%s]: %s", mr.Name, err.Error())
+		logger.Error("handleRequestMetricV2: " + errText)
+		http.Error(w, errText, http.StatusNotFound)
 		return
 	}
 
@@ -100,7 +112,9 @@ func handleRequestMetricV2(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(m)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errText := fmt.Sprintf("ENCODE ERROR: %s", err.Error())
+		logger.Error("handleRequestMetricV2: " + errText)
+		http.Error(w, errText, http.StatusInternalServerError)
 		return
 	}
 

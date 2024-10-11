@@ -45,14 +45,18 @@ func handleGZIPRequests(next http.Handler) http.Handler {
 
 		gz, err := gzip.NewReader(r.Body)
 		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			errText := fmt.Sprintf("error reading compressed msg body: %s", err.Error())
+			logger.Error("handleGZIPRequests: " + errText)
+			http.Error(rw, errText, http.StatusInternalServerError)
 			return
 		}
 
 		defer gz.Close()
 		body, err := io.ReadAll(gz)
 		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			errText := fmt.Sprintf("error extracting msg body: %s", err.Error())
+			logger.Error("handleGZIPRequests: " + errText)
+			http.Error(rw, errText, http.StatusInternalServerError)
 			return
 		}
 
@@ -82,7 +86,7 @@ func main() {
 	//post-init unistorage actions
 	err := stor.Bootstrap()
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("srv: post-init bootstrap failed, error: %s\n", err))
+		logger.Fatal(fmt.Sprintf("srv: post-init bootstrap failed, error: %s", err))
 	}
 
 	// run `server` in its own goroutine
@@ -115,14 +119,14 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// statically linked variables (YP iter20 requirement)
-	fmt.Printf("Build version: %s\n", naIfEmpty(buildVersion))
-	fmt.Printf("Build date: %s\n", naIfEmpty(buildDate))
-	fmt.Printf("Build commit: %s\n", naIfEmpty(buildCommit))
+	logger.Info(fmt.Sprintf("Build version: %s", naIfEmpty(buildVersion)))
+	logger.Info(fmt.Sprintf("Build date: %s", naIfEmpty(buildDate)))
+	logger.Info(fmt.Sprintf("Build commit: %s", naIfEmpty(buildCommit)))
 
 	logger.Info(fmt.Sprintf("srv: using endpoint %s", sc.Endpoint))
 	logger.Info(fmt.Sprintf("srv: storage mode = %v", sc.StorageMode))
 	logger.Info(fmt.Sprintf("srv: compress replies = %v %v", sc.CompressReplies, sc.CompressibleContentTypes))
-	logger.Info(fmt.Sprintf("srv: signed messaging = %v\n", signer.UseSignedMessaging()))
+	logger.Info(fmt.Sprintf("srv: signed messaging = %v", signer.UseSignedMessaging()))
 
 	switch sc.StorageMode {
 	case app.Database:
@@ -149,7 +153,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	if sc.StorageMode == app.File && sc.RestoreMetrics {
 		err := stor.LoadState(sc.FileStoragePath)
 		if err != nil {
-			logger.Error(fmt.Sprintf("srv: failed to load server state from [%s], error: %s\n", sc.FileStoragePath, err))
+			logger.Error(fmt.Sprintf("srv: failed to load server state from [%s], error: %s", sc.FileStoragePath, err.Error()))
 		}
 	}
 
@@ -184,7 +188,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	go func() {
 		// service connections
 		if err := srv.ListenAndServe(); err != nil {
-			logger.Error(fmt.Sprintf("Listen: %s\n", err))
+			logger.Error(fmt.Sprintf("Listen: %s", err.Error()))
 		}
 	}()
 
@@ -202,7 +206,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	if sc.StorageMode == app.File {
 		err := stor.SaveState(sc.FileStoragePath)
 		if err != nil {
-			logger.Error(fmt.Sprintf("srv: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
+			logger.Error(fmt.Sprintf("srv: failed to save server state to [%s], error: %s", sc.FileStoragePath, err))
 		}
 	}
 
@@ -228,7 +232,7 @@ func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
 
 			err := stor.SaveState(sc.FileStoragePath)
 			if err != nil {
-				logger.Error(fmt.Sprintf("srv-dumper: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err))
+				logger.Error(fmt.Sprintf("srv-dumper: failed to save server state to [%s], error: %s", sc.FileStoragePath, err))
 			}
 		case <-ctx.Done():
 			logger.Info("srv-dumper: stop requested")
