@@ -173,7 +173,7 @@ func Test_index(t *testing.T) {
 			},
 		},
 		{
-			name: "004-03 REQUESTv1 negative Gauge test",
+			name: "004-03 REQUESTv1 negative Gauge test (bad type)",
 			want: want{
 				contentType: "text/plain; charset=utf-8",
 				statusCode:  400,
@@ -188,7 +188,7 @@ func Test_index(t *testing.T) {
 			},
 		},
 		{
-			name: "004-04 REQUESTv1 negative Counter test",
+			name: "004-04 REQUESTv1 negative Counter test (bad type)",
 			want: want{
 				contentType: "text/plain; charset=utf-8",
 				statusCode:  400,
@@ -200,6 +200,21 @@ func Test_index(t *testing.T) {
 			params: map[string]string{
 				"type": "counterZ",
 				"name": "DemoCounter",
+			},
+		},
+		{
+			name: "004-05 REQUESTv1 negative Counter test (bad name)",
+			want: want{
+				contentType: "text/plain; charset=utf-8",
+				statusCode:  404,
+				bodyHeader:  "",
+			},
+			handler: handleRequestMetricV1,
+			request: "/value/counterZ/DemoCounter",
+			method:  http.MethodGet,
+			params: map[string]string{
+				"type": "counter",
+				"name": "DemoCounterMissing",
 			},
 		},
 		{
@@ -273,6 +288,18 @@ func Test_index(t *testing.T) {
 			request: "/update/",
 			method:  http.MethodPost,
 			body:    `{"type": "counterZ", "name": "DemoCounterV2", "delta": 30}`,
+		},
+		{
+			name: "005-07 UPDATEv2 negative Counter test (bad JSON)",
+			want: want{
+				contentType: "text/plain; charset=utf-8",
+				statusCode:  400,
+				bodyHeader:  "",
+			},
+			handler: handleUpdateMetricV2,
+			request: "/update/",
+			method:  http.MethodPost,
+			body:    `this is just poorly-formed JSON`,
 		},
 		{
 			name: "006-01 REQUESTv2 positive Gauge test",
@@ -371,6 +398,18 @@ func Test_index(t *testing.T) {
 			body:    `{"type": "counter", "id": "DemoCounterV2_ERR"}`,
 		},
 		{
+			name: "006-09 REQUESTv2 negative Counter test (bad JSON)",
+			want: want{
+				contentType: "text/plain; charset=utf-8",
+				statusCode:  400,
+				bodyHeader:  "",
+			},
+			handler: handleRequestMetricV2,
+			request: "/value/",
+			method:  http.MethodPost,
+			body:    `this is just poorly-formed JSON`,
+		},
+		{
 			name: "007-01 MASS UPDATE positive test",
 			want: want{
 				contentType: "application/json",
@@ -381,6 +420,30 @@ func Test_index(t *testing.T) {
 			request: "/updates/",
 			method:  http.MethodPost,
 			body:    `[{"type": "gauge", "id": "DemoGaugeMASS", "value": 5.5},{"type": "counter", "id": "DemoCounterMASS", "delta": 100}]`,
+		},
+		{
+			name: "007-02 MASS UPDATE negative test (bad type)",
+			want: want{
+				contentType: "text/plain; charset=utf-8",
+				statusCode:  400,
+				bodyHeader:  "",
+			},
+			handler: handleUpdateMetrics,
+			request: "/updates/",
+			method:  http.MethodPost,
+			body:    `[{"type": "gaugeZ", "id": "DemoGaugeMASS", "value": 5.5},{"type": "counterZ", "id": "DemoCounterMASS", "delta": 100}]`,
+		},
+		{
+			name: "007-03 MASS UPDATE negative test (bad JSON)",
+			want: want{
+				contentType: "text/plain; charset=utf-8",
+				statusCode:  400,
+				bodyHeader:  "",
+			},
+			handler: handleUpdateMetrics,
+			request: "/updates/",
+			method:  http.MethodPost,
+			body:    `this is just poorly-formed JSON`,
 		},
 	}
 

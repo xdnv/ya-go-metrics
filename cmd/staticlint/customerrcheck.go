@@ -1,5 +1,5 @@
 // custom error checker
-// forbids direct call of os.Exit() in main() function of "main" package
+// forbids direct os.Exit() call in main() function of "main" package
 package main
 
 import (
@@ -10,7 +10,7 @@ import (
 
 var OsExitCheckAnalyzer = &analysis.Analyzer{
 	Name: "osexitcheck",
-	Doc:  "forbids direct call of os.Exit() in main() function of \"main\" package",
+	Doc:  "forbids direct os.Exit() call in main() function of \"main\" package",
 	Run:  runCheckOsExit,
 }
 
@@ -36,8 +36,9 @@ func runCheckOsExit(pass *analysis.Pass) (interface{}, error) {
 					//iterating through statements
 					//check if it's standalone statement
 					if callExpr, ok := stmt.(*ast.ExprStmt); ok {
-						//
+						//check if it's expression with arguments
 						if selExpr, ok := callExpr.X.(*ast.CallExpr); ok {
+							//check if it's expression with selector
 							if ident, ok := selExpr.Fun.(*ast.SelectorExpr); ok {
 								if id, ok := ident.X.(*ast.Ident); ok && id.Name == "os" && ident.Sel.Name == "Exit" {
 									pass.Reportf(id.NamePos, "os.Exit should not be used in main()")
