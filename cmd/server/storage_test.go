@@ -13,7 +13,8 @@ import (
 
 func TestNewMemStorage(t *testing.T) {
 	type want struct {
-		Value interface{}
+		Value         interface{}
+		ValueSequence []interface{}
 	}
 	tests := []struct {
 		name           string
@@ -30,7 +31,8 @@ func TestNewMemStorage(t *testing.T) {
 			initialValue:   float64(0),
 			updateSequence: []interface{}{float64(0.011), float64(0.012)},
 			want: want{
-				Value: float64(0.012),
+				Value:         float64(0.012),
+				ValueSequence: []interface{}{float64(0.011), float64(0.012)},
 			},
 		},
 		{
@@ -40,7 +42,8 @@ func TestNewMemStorage(t *testing.T) {
 			initialValue:   int64(0.0),
 			updateSequence: []interface{}{int64(50), int64(60)},
 			want: want{
-				Value: int64(110),
+				Value:         int64(110),
+				ValueSequence: []interface{}{int64(50), int64(110)},
 			},
 		},
 	}
@@ -75,7 +78,7 @@ func TestNewMemStorage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			var stor = NewUniStorage(testSc)
+			var tstor = NewUniStorage(testSc)
 			var tm Metric
 
 			switch tt.metricType {
@@ -87,14 +90,17 @@ func TestNewMemStorage(t *testing.T) {
 				assert.True(t, true, fmt.Sprintf("Unsupported metric type: %s", tt.metricType))
 			}
 
-			for _, v := range tt.updateSequence {
+			for i, v := range tt.updateSequence {
 				tm.UpdateValue(v)
+				tstor.SetMetric(tt.metricName, tm)
+
+				//read back temporary metric state
+				metric, _ := tstor.GetMetric(tt.metricName)
+				assert.Equal(t, tt.want.ValueSequence[i], metric.GetValue())
 			}
 
-			stor.SetMetric(tt.metricName, tm)
-
-			//read back metric value
-			metric, _ := stor.GetMetric(tt.metricName)
+			//read back final metric value
+			metric, _ := tstor.GetMetric(tt.metricName)
 			assert.Equal(t, tt.want.Value, metric.GetValue())
 		})
 	}
@@ -102,6 +108,10 @@ func TestNewMemStorage(t *testing.T) {
 
 // MemStorage performance benchmark
 func BenchmarkMemStorage(b *testing.B) {
+	var testSc = new(app.ServerConfig)
+	testSc.StorageMode = app.Memory
+	var tstor = NewUniStorage(testSc)
+
 	b.Run("gauges_update", func(b *testing.B) {
 		var v = 0.2
 		n := "Gauge"
@@ -109,7 +119,7 @@ func BenchmarkMemStorage(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tm.UpdateValue(v)
 		}
-		stor.SetMetric(n, tm)
+		tstor.SetMetric(n, tm)
 	})
 	b.Run("counters_update", func(b *testing.B) {
 		var v int64 = 1
@@ -118,14 +128,14 @@ func BenchmarkMemStorage(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			tm.UpdateValue(v)
 		}
-		stor.SetMetric(n, tm)
+		tstor.SetMetric(n, tm)
 	})
 	b.Run("gauges_add", func(b *testing.B) {
 		var v = 0.2
 		n := "Gauge"
 		for i := 0; i < b.N; i++ {
 			tm := &Gauge{Value: v}
-			stor.SetMetric(n+strconv.Itoa(i), tm)
+			tstor.SetMetric(n+strconv.Itoa(i), tm)
 		}
 	})
 	b.Run("counters_add", func(b *testing.B) {
@@ -133,7 +143,7 @@ func BenchmarkMemStorage(b *testing.B) {
 		n := "Counter"
 		for i := 0; i < b.N; i++ {
 			tm := &Counter{Value: v}
-			stor.SetMetric(n+strconv.Itoa(i), tm)
+			tstor.SetMetric(n+strconv.Itoa(i), tm)
 		}
 	})
 }

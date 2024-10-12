@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"internal/adapters/logger"
 	"internal/app"
 	"internal/domain"
 )
@@ -18,8 +19,9 @@ func handleUpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	var errs []error
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		fmt.Printf("handleUpdateMetrics decode error: %s", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errText := fmt.Sprintf("DECODE ERROR: %s", err.Error())
+		logger.Error("handleUpdateMetrics: " + errText)
+		http.Error(w, errText, http.StatusBadRequest)
 		return
 	}
 
@@ -31,9 +33,9 @@ func handleUpdateMetrics(w http.ResponseWriter, r *http.Request) {
 		for i, err := range errs {
 			strErrors[i] = err.Error()
 		}
-		fmt.Printf("handleUpdateMetrics errors: %s", strings.Join(strErrors, "\n"))
-
-		http.Error(w, "Errors: \n"+strings.Join(strErrors, "\n"), http.StatusBadRequest)
+		errText := fmt.Sprintf("bulk update errors: %s", strings.Join(strErrors, "\n"))
+		logger.Error("handleUpdateMetrics: " + errText)
+		http.Error(w, errText, http.StatusBadRequest)
 		return
 	}
 
@@ -41,7 +43,8 @@ func handleUpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	if (sc.StorageMode == app.File) && (sc.StoreInterval == 0) {
 		err := stor.SaveState(sc.FileStoragePath)
 		if err != nil {
-			fmt.Printf("srv-updateMetrics: failed to save server state to [%s], error: %s\n", sc.FileStoragePath, err)
+			errText := fmt.Sprintf("failed to save server state to [%s], error: %s", sc.FileStoragePath, err.Error())
+			logger.Error("handleUpdateMetrics: " + errText)
 		}
 	}
 
@@ -62,7 +65,9 @@ func handleUpdateMetrics(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(mr)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		errText := fmt.Sprintf("ENCODE ERROR: %s", err.Error())
+		logger.Error("handleUpdateMetrics: " + errText)
+		http.Error(w, errText, http.StatusInternalServerError)
 		return
 	}
 
