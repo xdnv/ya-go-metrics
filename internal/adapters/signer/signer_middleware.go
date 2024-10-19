@@ -40,6 +40,7 @@ func HandleSignedRequests(next http.Handler) http.Handler {
 
 		sig, err := base64.URLEncoding.DecodeString(sigRaw)
 		if err != nil {
+			logger.Error("signer: incorrect message signature format")
 			http.Error(rw, "incorrect message signature format", http.StatusBadRequest)
 			return
 		}
@@ -51,12 +52,13 @@ func HandleSignedRequests(next http.Handler) http.Handler {
 
 		if !hmac.Equal(sig, bodySig) {
 			if signer.StrictSignedMessaging {
+				logger.Error("signer: message security check failed")
 				http.Error(rw, "message security check failed", http.StatusBadRequest)
 				return
 			}
 
 			//non-strict mode passes yandex iter14 test: yandex gives no actual signature, just a key on startup
-			logger.Info("signer: message security check FAILED")
+			logger.Error("signer: non-strict message security check FAILED")
 		} else {
 			logger.Info(fmt.Sprint("signer: signature OK, id=", sig))
 		}

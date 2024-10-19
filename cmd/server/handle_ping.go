@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"internal/adapters/logger"
 	"internal/app"
 )
 
@@ -13,7 +14,9 @@ func handlePingDBServer(w http.ResponseWriter, r *http.Request) {
 	//w.WriteHeader(http.StatusOK)
 
 	if sc.StorageMode != app.Database {
-		http.Error(w, "cannot ping DB connection: server does not run in Database mode", http.StatusBadRequest)
+		errText := "cannot ping DB connection: server does not run in Database mode"
+		logger.Error(errText)
+		http.Error(w, errText, http.StatusBadRequest)
 		return
 	}
 
@@ -32,7 +35,9 @@ func handlePingDBServer(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	if err := stor.Ping(); err != nil {
-		http.Error(w, fmt.Sprintf("error pinging DB server: %s", err), http.StatusInternalServerError)
+		errText := fmt.Sprintf("error pinging DB server: %s", err)
+		logger.Error(errText)
+		http.Error(w, errText, http.StatusInternalServerError)
 		return
 	}
 
