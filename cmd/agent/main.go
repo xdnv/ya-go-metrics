@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"runtime"
 	"sync"
+	"syscall"
 	"time"
 
 	"internal/adapters/cryptor"
@@ -437,7 +438,7 @@ func main() {
 
 	// listen for ^C
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	<-c
 	logger.Info("agent: received ^C - shutting down")
 

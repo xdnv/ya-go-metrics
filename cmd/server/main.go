@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"internal/app"
@@ -101,7 +102,7 @@ func main() {
 
 	// listen for ^C
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	<-c
 	logger.Info("srv: received ^C - shutting down")
 
