@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
+	"internal/adapters/cryptor"
 	"internal/adapters/signer"
 )
 
@@ -45,6 +47,7 @@ type ServerConfig struct {
 	CompressReplies          bool
 	CompressibleContentTypes []string
 	MaxConnectionRetries     uint64
+	CryptoKeyPath            string
 }
 
 func InitServerConfig() ServerConfig {
@@ -61,6 +64,7 @@ func InitServerConfig() ServerConfig {
 	flag.Int64Var(&cf.StoreInterval, "i", 300, "interval in seconds to store metrics in datafile, set 0 for synchronous output")
 	flag.StringVar(&cf.DatabaseDSN, "d", "", "database DSN (format: 'host=<host> [port=port] user=<user> password=<xxxx> dbname=<mydb> sslmode=disable')")
 	flag.StringVar(&MsgKey, "k", "", "key to use signed messaging, empty value disables signing")
+	flag.StringVar(&cf.CryptoKeyPath, "crypto-key", "", "path to private crypto key")
 	flag.StringVar(&cf.FileStoragePath, "f", "/tmp/metrics-db.json", "full datafile path to store/load state of metrics. empty value shuts off metric dumps")
 	flag.BoolVar(&cf.RestoreMetrics, "r", true, "load metrics from datafile on server start, boolean")
 	flag.BoolVar(&cf.CompressReplies, "c", true, "compress server replies, boolean")
@@ -97,8 +101,14 @@ func InitServerConfig() ServerConfig {
 	if val, found := os.LookupEnv("KEY"); found {
 		MsgKey = val
 	}
+	if val, found := os.LookupEnv("CRYPTO_KEY"); found {
+		cf.CryptoKeyPath = val
+	}
 	if val, found := os.LookupEnv("LOG_LEVEL"); found {
 		cf.LogLevel = val
+	}
+	if val, found := os.LookupEnv("CRYPTO_KEY"); found {
+		cf.CryptoKeyPath = val
 	}
 
 	if cf.Endpoint == "" {
@@ -119,6 +129,15 @@ func InitServerConfig() ServerConfig {
 
 	//set signing mode
 	signer.SetKey(MsgKey)
+
+	cf.CryptoKeyPath = strings.TrimSpace(cf.CryptoKeyPath)
+	if cf.CryptoKeyPath != "" {
+		err := cryptor.LoadPrivateKey(cf.CryptoKeyPath)
+		if err != nil {
+			panic("PANIC: failed to load crypto key " + err.Error())
+		}
+		cryptor.EnableEncryption(true)
+	}
 
 	return cf
 }

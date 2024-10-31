@@ -5,7 +5,9 @@ import (
 	"flag"
 	"os"
 	"strconv"
+	"strings"
 
+	"internal/adapters/cryptor"
 	"internal/adapters/signer"
 )
 
@@ -21,6 +23,7 @@ type AgentConfig struct {
 	MaxConnectionRetries uint64 // Connection retries for retriable functions (does not include original request. 0 to disable)
 	UseRateLimit         bool   // flag option to enable or disable rate limiter
 	RateLimit            int64  // max simultaneous connections to server (rate limit)
+	CryptoKeyPath        string // path to public crypto key (to encrypt messages to server)
 }
 
 // set agent configuration using command line arguments and/or environment variables
@@ -40,6 +43,7 @@ func InitAgentConfig() AgentConfig {
 	flag.Int64Var(&cf.ReportInterval, "r", 10, "metric reporting frequency in seconds")
 	flag.Int64Var(&cf.RateLimit, "l", 0, "max simultaneous connections to server, set 0 to disable rate limit")
 	flag.StringVar(&MsgKey, "k", "", "key to use signed messaging, empty value disables signing")
+	flag.StringVar(&cf.CryptoKeyPath, "crypto-key", "", "path to public crypto key")
 	flag.StringVar(&cf.LogLevel, "v", "info", "log verbosity (log level)")
 	flag.Parse()
 
@@ -68,6 +72,9 @@ func InitAgentConfig() AgentConfig {
 	if val, found := os.LookupEnv("KEY"); found {
 		MsgKey = val
 	}
+	if val, found := os.LookupEnv("CRYPTO_KEY"); found {
+		cf.CryptoKeyPath = val
+	}
 	if val, found := os.LookupEnv("LOG_LEVEL"); found {
 		cf.LogLevel = val
 	}
@@ -87,6 +94,15 @@ func InitAgentConfig() AgentConfig {
 
 	//set signing mode
 	signer.SetKey(MsgKey)
+
+	cf.CryptoKeyPath = strings.TrimSpace(cf.CryptoKeyPath)
+	if cf.CryptoKeyPath != "" {
+		err := cryptor.LoadPublicKey(cf.CryptoKeyPath)
+		if err != nil {
+			panic("PANIC: failed to load crypto key " + err.Error())
+		}
+		cryptor.EnableEncryption(true)
+	}
 
 	cf.UseRateLimit = (cf.RateLimit > 0)
 

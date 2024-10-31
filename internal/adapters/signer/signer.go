@@ -18,7 +18,7 @@ var signer *SignerObject
 func init() {
 	signer = new(SignerObject)
 	//signer.StrictSignedMessaging = true
-	signer.StrictSignedMessaging = false //bypass errorneour iter14 test w/o actual signing
+	signer.StrictSignedMessaging = false //bypass errorneous iter14 test w/o actual signing
 }
 
 // set security key
