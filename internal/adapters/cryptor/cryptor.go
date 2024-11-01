@@ -8,7 +8,7 @@ import (
 
 // main cryptor object to store security configuration
 type CryptorObject struct {
-	UseEncryption bool            // enables or disables use of signature
+	UseEncryption bool            // enables or disables encryption (regardless of keys loaded)
 	PrivateKey    *rsa.PrivateKey // secret key to en/decode payload
 	PublicKey     *rsa.PublicKey  // public key to encode payload
 }
