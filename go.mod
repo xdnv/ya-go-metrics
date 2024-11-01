@@ -16,6 +16,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
+require internal/adapters/cryptor v1.0.0
+
+replace internal/adapters/cryptor => ./internal/adapters/cryptor
+
 require internal/adapters/logger v1.0.0
 
 replace internal/adapters/logger => ./internal/adapters/logger

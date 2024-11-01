@@ -28,3 +28,8 @@ cmd/server/_srv.cmd
 cmd/server/_srv_db.cmd
 cmd/server/_srv_db_bad.cmd
 cmd/agent/_agent.cmd
+cmd/keygen/private.pem
+cmd/keygen/public.pem
+cmd/agent/config.json
+cmd/server/config_db.json
+cmd/server/config_local.json

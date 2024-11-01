@@ -14,8 +14,10 @@ import (
 	"os/signal"
 	"runtime"
 	"sync"
+	"syscall"
 	"time"
 
+	"internal/adapters/cryptor"
 	"internal/adapters/logger"
 	"internal/adapters/signer"
 	"internal/app"
@@ -71,6 +73,12 @@ func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*
 	if err := g.Close(); err != nil {
 		return nil, err
 	}
+
+	encrypted, err := encryptMessage(&buf)
+	if err != nil {
+		return nil, err
+	}
+
 	r, err := http.NewRequest("POST", address, &buf)
 	if err != nil {
 		return nil, err
@@ -81,6 +89,11 @@ func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*
 	r.Header.Set("Content-Type", contentType)
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
+
+	if encrypted {
+		r.Header.Set("X-Encrypted", "true")
+	}
+
 	signMessage(r, body) //body has to be signed before compression since server checks signature of unpacked data
 	resp, err := http.DefaultClient.Do(r)
 
@@ -101,6 +114,21 @@ func signMessage(r *http.Request, body *bytes.Buffer) error {
 	r.Header.Set(signer.GetSignatureToken(), base64.URLEncoding.EncodeToString(sig))
 
 	return nil
+}
+
+func encryptMessage(body *bytes.Buffer) (bool, error) {
+	if !cryptor.CanEncrypt() {
+		return false, nil
+	}
+
+	msg, err := cryptor.Encrypt(body.Bytes())
+	if err != nil {
+		return false, err
+	}
+	body.Reset()    // Clear the buffer
+	body.Write(msg) // Write encrypted data back to buffer
+
+	return true, nil
 }
 
 func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
@@ -410,7 +438,7 @@ func main() {
 
 	// listen for ^C
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	<-c
 	logger.Info("agent: received ^C - shutting down")
 
@@ -435,6 +463,7 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	logger.Info(fmt.Sprintf("agent: using endpoint %s", ac.Endpoint))
 	logger.Info(fmt.Sprintf("agent: poll interval %d", ac.PollInterval))
 	logger.Info(fmt.Sprintf("agent: report interval %d", ac.ReportInterval))
+	logger.Info(fmt.Sprintf("agent: encryption=%v", cryptor.CanEncrypt()))
 	logger.Info(fmt.Sprintf("agent: signed messaging=%v", signer.UseSignedMessaging()))
 	logger.Info(fmt.Sprintf("agent: rate limit=%v", ac.RateLimit))
 
