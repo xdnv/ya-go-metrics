@@ -8,6 +8,7 @@ require (
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/jackc/pgx/v5 v5.5.5
 	internal/adapters/cryptor v1.0.0
+	internal/adapters/firewall v1.0.0
 	internal/adapters/logger v1.0.0
 	internal/adapters/signer v1.0.0
 )
@@ -22,6 +23,8 @@ require (
 )
 
 replace internal/adapters/cryptor => ../adapters/cryptor
+
+replace internal/adapters/firewall => ../adapters/firewall
 
 replace internal/adapters/logger => ../adapters/logger
 

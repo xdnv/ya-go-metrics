@@ -21,6 +21,7 @@ import (
 	"internal/ports/storage"
 
 	"internal/adapters/cryptor"
+	"internal/adapters/firewall"
 	"internal/adapters/logger"
 	"internal/adapters/signer"
 
@@ -128,8 +129,9 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	logger.Info(fmt.Sprintf("srv: using endpoint %s", sc.Endpoint))
 	logger.Info(fmt.Sprintf("srv: storage mode = %v", sc.StorageMode))
 	logger.Info(fmt.Sprintf("srv: compress replies = %v %v", sc.CompressReplies, sc.CompressibleContentTypes))
-	logger.Info(fmt.Sprintf("srv: signed messaging = %v", signer.UseSignedMessaging()))
+	logger.Info(fmt.Sprintf("srv: signed messaging = %v", signer.IsSignedMessagingEnabled()))
 	logger.Info(fmt.Sprintf("srv: encryption=%v", cryptor.CanDecrypt()))
+	logger.Info(fmt.Sprintf("srv: firewall=%v", firewall.IsFirewallEnabled()))
 
 	switch sc.StorageMode {
 	case app.Database:
@@ -166,6 +168,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 
 	mux := chi.NewRouter()
 	mux.Use(logger.LoggerMiddleware)
+	mux.Use(firewall.HandleTrustedNetworkRequests)
 	mux.Use(cryptor.HandleencryptedRequests)
 	mux.Use(handleGZIPRequests)
 	mux.Use(signer.HandleSignedRequests)

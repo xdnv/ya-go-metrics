@@ -7,8 +7,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -35,6 +37,7 @@ var sendJobs chan uuid.UUID
 var buildVersion string
 var buildDate string
 var buildCommit string
+var agentIP string
 
 // HTTP post metric value using API v1
 func PostValueV1(ctx context.Context, ac app.AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
@@ -90,6 +93,12 @@ func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*
 	r.Header.Set("Content-Encoding", "gzip")
 	r.Header.Set("Accept-Encoding", "gzip")
 
+	// send real client IP
+	if agentIP != "" {
+		r.Header.Set("X-Real-IP", agentIP)
+	}
+
+	// mark encrypted payload
 	if encrypted {
 		r.Header.Set("X-Encrypted", "true")
 	}
@@ -101,7 +110,7 @@ func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*
 }
 
 func signMessage(r *http.Request, body *bytes.Buffer) error {
-	if !signer.UseSignedMessaging() {
+	if !signer.IsSignedMessagingEnabled() {
 		return nil
 	}
 
@@ -419,6 +428,29 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 	return resp, nil
 }
 
+// returns first non-loopback local IP address
+func getLocalIP() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+
+	var localIP string
+	for _, addr := range addrs {
+		// Check if address is IPv4 and not loopback
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && ipnet.IP.To4() != nil {
+			localIP = ipnet.IP.String()
+			break
+		}
+	}
+
+	if localIP == "" {
+		return "", errors.New("no valid local IP address found")
+	}
+
+	return localIP, nil
+}
+
 // global metric storage
 var ms = domain.NewMetricStorage()
 
@@ -464,8 +496,15 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	logger.Info(fmt.Sprintf("agent: poll interval %d", ac.PollInterval))
 	logger.Info(fmt.Sprintf("agent: report interval %d", ac.ReportInterval))
 	logger.Info(fmt.Sprintf("agent: encryption=%v", cryptor.CanEncrypt()))
-	logger.Info(fmt.Sprintf("agent: signed messaging=%v", signer.UseSignedMessaging()))
+	logger.Info(fmt.Sprintf("agent: signed messaging=%v", signer.IsSignedMessagingEnabled()))
 	logger.Info(fmt.Sprintf("agent: rate limit=%v", ac.RateLimit))
+
+	//iter24: send local IP to server
+	localIP, err := getLocalIP()
+	if err != nil {
+		logger.Error(fmt.Sprintf("error getting local IP-address, %s", err.Error()))
+	}
+	agentIP = localIP
 
 	//add optional rate limiter as required by technical specs
 	if ac.UseRateLimit {

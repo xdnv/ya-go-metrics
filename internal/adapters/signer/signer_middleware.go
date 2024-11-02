@@ -17,7 +17,7 @@ import (
 func HandleSignedRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 
-		if !signer.UseSignedMessaging {
+		if !IsSignedMessagingEnabled() {
 			next.ServeHTTP(rw, r)
 			return
 		}

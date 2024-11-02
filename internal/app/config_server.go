@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"internal/adapters/cryptor"
+	"internal/adapters/firewall"
 	"internal/adapters/signer"
 )
 
@@ -50,6 +51,7 @@ type ServerConfig struct {
 	CompressibleContentTypes []string    `json:""`                            // array of compressible mime types
 	MessageSignature         string      `json:"message_signature,omitempty"` // key to use signed messaging, empty value disables signing
 	CryptoKeyPath            string      `json:"crypto_key,omitempty"`        // path to private crypto key (to decrypt messages from client)
+	TrustedSubnet            string      `json:"trusted_subnet,omitempty"`    // trusted agent subnet in CIDR form. use empty value to disable security check.
 	ConfigFilePath           string      `json:""`                            //path to JSON config file
 }
 
@@ -65,6 +67,7 @@ func NewServerConfig() ServerConfig {
 		FileStoragePath:  "/tmp/metrics-db.json",
 		RestoreMetrics:   true,
 		CompressReplies:  true,
+		TrustedSubnet:    "",
 		LogLevel:         "info",
 	}
 }
@@ -106,6 +109,7 @@ func ParseServerConfigFile(cf *ServerConfig) {
 	cf.FileStoragePath = jcf.FileStoragePath
 	cf.RestoreMetrics = jcf.RestoreMetrics
 	cf.CompressReplies = jcf.CompressReplies
+	cf.TrustedSubnet = jcf.TrustedSubnet
 	cf.LogLevel = jcf.LogLevel
 }
 
@@ -126,6 +130,7 @@ func InitServerConfig() ServerConfig {
 	flag.StringVar(&cf.DatabaseDSN, "d", cf.DatabaseDSN, "database DSN (format: 'host=<host> [port=port] user=<user> password=<xxxx> dbname=<mydb> sslmode=disable')")
 	flag.StringVar(&cf.MessageSignature, "k", cf.MessageSignature, "key to use signed messaging, empty value disables signing")
 	flag.StringVar(&cf.CryptoKeyPath, "crypto-key", cf.CryptoKeyPath, "path to private crypto key")
+	flag.StringVar(&cf.TrustedSubnet, "t", cf.TrustedSubnet, "trusted agent subnet in CIDR form. use empty value to disable security check.")
 	flag.StringVar(&cf.FileStoragePath, "f", cf.FileStoragePath, "full datafile path to store/load state of metrics. empty value shuts off metric dumps")
 	flag.BoolVar(&cf.RestoreMetrics, "r", cf.RestoreMetrics, "load metrics from datafile on server start, boolean")
 	flag.BoolVar(&cf.CompressReplies, "c", cf.CompressReplies, "compress server replies, boolean")
@@ -165,6 +170,9 @@ func InitServerConfig() ServerConfig {
 	if val, found := os.LookupEnv("CRYPTO_KEY"); found {
 		cf.CryptoKeyPath = val
 	}
+	if val, found := os.LookupEnv("TRUSTED_SUBNET"); found {
+		cf.TrustedSubnet = val
+	}
 	if val, found := os.LookupEnv("LOG_LEVEL"); found {
 		cf.LogLevel = val
 	}
@@ -186,11 +194,11 @@ func InitServerConfig() ServerConfig {
 		cf.StorageMode = Memory
 	}
 
-	//set signing mode
+	// set signing mode
 	signer.SetKey(cf.MessageSignature)
 	cf.MessageSignature = "" //for security reasons
 
-	//set encryption logic
+	// set encryption logic
 	cf.CryptoKeyPath = strings.TrimSpace(cf.CryptoKeyPath)
 	if cf.CryptoKeyPath != "" {
 		err := cryptor.LoadPrivateKey(cf.CryptoKeyPath)
@@ -199,6 +207,9 @@ func InitServerConfig() ServerConfig {
 		}
 		cryptor.EnableEncryption(true)
 	}
+
+	// set firewall logic
+	firewall.SetSubnetMask(cf.TrustedSubnet)
 
 	return cf
 }
