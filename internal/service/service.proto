@@ -8,7 +8,7 @@ service MetricStorage {
     rpc GetMetrics(EmptyRequest) returns (Metrics);
     rpc PingDB(EmptyRequest) returns (DataResponse);
     rpc RequestMetricV1(Metric) returns (DataResponse);
-    rpc RequestMetricV2(DataRequest) returns (DataResponse);
+    rpc RequestMetricV2(RawData) returns (RawData);
     rpc UpdateMetricV1(Metric) returns (DataResponse);
     rpc UpdateMetricV2(RawData) returns (RawData);
     rpc UpdateMetrics(RawData) returns (RawData);

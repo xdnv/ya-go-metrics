@@ -91,7 +91,7 @@ func InitAgentConfig() AgentConfig {
 
 	cf := NewAgentConfig()
 	cf.APIVersion = "v2"        // activate JSON support
-	cf.UseCompression = false   // activate gzip compression //TODO: return to TRUE after debug will be finished
+	cf.UseCompression = true    // activate gzip compression
 	cf.BulkUpdate = true        // activate bulk JSON metric update
 	cf.MaxConnectionRetries = 3 // Connection retries for retriable functions (does not include original request. 0 to disable)
 	cf.ConfigFilePath = ""

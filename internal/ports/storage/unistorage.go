@@ -79,7 +79,7 @@ func (t UniStorage) Ping() error {
 		err := DoRetry(dbctx, t.config.MaxConnectionRetries, backoff)
 		//return t.db.Ping(dbctx)
 		if err != nil {
-			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
+			logger.Errorf("%s: %s\n", errMsg, err)
 		}
 		return err
 	} else {
@@ -101,7 +101,7 @@ func (t UniStorage) SetMetric(name string, metric Metric) {
 		err := DoRetry(dbctx, t.config.MaxConnectionRetries, backoff)
 		//err := t.db.SetMetric(dbctx, name, metric)
 		if err != nil {
-			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
+			logger.Errorf("%s: %s\n", errMsg, err)
 		}
 	} else {
 		t.stor.SetMetric(name, metric)
@@ -144,7 +144,7 @@ func (t UniStorage) GetMetric(id string) (Metric, error) {
 		err := DoRetry(dbctx, t.config.MaxConnectionRetries, backoff)
 		//return t.db.GetMetric(dbctx, id)
 		if err != nil {
-			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
+			logger.Errorf("%s: %s\n", errMsg, err)
 			return nil, err
 		}
 		return metric, err
@@ -176,7 +176,7 @@ func (t UniStorage) GetMetrics() map[string]Metric {
 		err := DoRetry(dbctx, t.config.MaxConnectionRetries, backoff)
 		//targetMap, err = t.db.GetMetrics(dbctx) //original w/o retries
 		if err != nil {
-			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
+			logger.Errorf("%s: %s\n", errMsg, err)
 			// return empty map
 			return make(map[string]Metric)
 		}
@@ -204,7 +204,7 @@ func (t UniStorage) UpdateMetricS(mType string, mName string, mValue string) err
 		err := DoRetry(dbctx, t.config.MaxConnectionRetries, backoff)
 		//return t.db.UpdateMetricS(dbctx, mType, mName, mValue)
 		if err != nil {
-			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
+			logger.Errorf("%s: %s\n", errMsg, err)
 		}
 		return err
 	} else {
@@ -230,7 +230,7 @@ func (t UniStorage) BatchUpdateMetrics(m *[]domain.Metrics, errs *[]error) *[]do
 		//return t.db.BatchUpdateMetrics(dbctx, m)
 		if err != nil {
 			*errs = append(*errs, err)
-			logger.Error(fmt.Sprintf("%s: %s\n", errMsg, err))
+			logger.Errorf("%s: %s\n", errMsg, err)
 		}
 
 		return mr

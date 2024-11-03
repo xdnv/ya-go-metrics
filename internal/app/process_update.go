@@ -44,7 +44,7 @@ func UpdateMetricV2(data io.Reader) (*[]byte, *domain.HandlerStatus) {
 
 	var m domain.Metrics
 
-	//logger.Debug(fmt.Sprintf("UpdateMetricV2 body: %v", data)) //DEBUG
+	//logger.Debugf("UpdateMetricV2 body: %v", data) //DEBUG
 
 	if err := json.NewDecoder(data).Decode(&m); err != nil {
 		hs.Message = fmt.Sprintf("json metric decode error: %s", err.Error())

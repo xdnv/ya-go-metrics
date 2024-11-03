@@ -2,7 +2,6 @@
 package firewall
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -36,12 +35,12 @@ func HandleTrustedNetworkRequests(next http.Handler) http.Handler {
 		}
 
 		if !IsTrustedIP(ip) {
-			logger.Error(fmt.Sprint("firewall: agent belongs to untrusted network, ip=", ipStr))
+			logger.Errorf("firewall: agent belongs to untrusted network, ip=%s", ipStr)
 			http.Error(rw, "access denied", http.StatusForbidden)
 			return
 		}
 
-		logger.Info(fmt.Sprint("firewall: agent is within trusted network, ip=", ipStr))
+		logger.Infof("firewall: agent is within trusted network, ip=%s", ipStr)
 
 		next.ServeHTTP(rw, r)
 	})

@@ -11,7 +11,7 @@ import (
 )
 
 // provides message security check using stored signature
-func HandleencryptedRequests(next http.Handler) http.Handler {
+func HandleEncryptedRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 
 		// check for corresponding encryption header

@@ -35,7 +35,7 @@ type MetricStorageClient interface {
 	GetMetrics(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*Metrics, error)
 	PingDB(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*DataResponse, error)
 	RequestMetricV1(ctx context.Context, in *Metric, opts ...grpc.CallOption) (*DataResponse, error)
-	RequestMetricV2(ctx context.Context, in *DataRequest, opts ...grpc.CallOption) (*DataResponse, error)
+	RequestMetricV2(ctx context.Context, in *RawData, opts ...grpc.CallOption) (*RawData, error)
 	UpdateMetricV1(ctx context.Context, in *Metric, opts ...grpc.CallOption) (*DataResponse, error)
 	UpdateMetricV2(ctx context.Context, in *RawData, opts ...grpc.CallOption) (*RawData, error)
 	UpdateMetrics(ctx context.Context, in *RawData, opts ...grpc.CallOption) (*RawData, error)
@@ -79,9 +79,9 @@ func (c *metricStorageClient) RequestMetricV1(ctx context.Context, in *Metric, o
 	return out, nil
 }
 
-func (c *metricStorageClient) RequestMetricV2(ctx context.Context, in *DataRequest, opts ...grpc.CallOption) (*DataResponse, error) {
+func (c *metricStorageClient) RequestMetricV2(ctx context.Context, in *RawData, opts ...grpc.CallOption) (*RawData, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DataResponse)
+	out := new(RawData)
 	err := c.cc.Invoke(ctx, MetricStorage_RequestMetricV2_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ type MetricStorageServer interface {
 	GetMetrics(context.Context, *EmptyRequest) (*Metrics, error)
 	PingDB(context.Context, *EmptyRequest) (*DataResponse, error)
 	RequestMetricV1(context.Context, *Metric) (*DataResponse, error)
-	RequestMetricV2(context.Context, *DataRequest) (*DataResponse, error)
+	RequestMetricV2(context.Context, *RawData) (*RawData, error)
 	UpdateMetricV1(context.Context, *Metric) (*DataResponse, error)
 	UpdateMetricV2(context.Context, *RawData) (*RawData, error)
 	UpdateMetrics(context.Context, *RawData) (*RawData, error)
@@ -149,7 +149,7 @@ func (UnimplementedMetricStorageServer) PingDB(context.Context, *EmptyRequest) (
 func (UnimplementedMetricStorageServer) RequestMetricV1(context.Context, *Metric) (*DataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestMetricV1 not implemented")
 }
-func (UnimplementedMetricStorageServer) RequestMetricV2(context.Context, *DataRequest) (*DataResponse, error) {
+func (UnimplementedMetricStorageServer) RequestMetricV2(context.Context, *RawData) (*RawData, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestMetricV2 not implemented")
 }
 func (UnimplementedMetricStorageServer) UpdateMetricV1(context.Context, *Metric) (*DataResponse, error) {
@@ -237,7 +237,7 @@ func _MetricStorage_RequestMetricV1_Handler(srv interface{}, ctx context.Context
 }
 
 func _MetricStorage_RequestMetricV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DataRequest)
+	in := new(RawData)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func _MetricStorage_RequestMetricV2_Handler(srv interface{}, ctx context.Context
 		FullMethod: MetricStorage_RequestMetricV2_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MetricStorageServer).RequestMetricV2(ctx, req.(*DataRequest))
+		return srv.(MetricStorageServer).RequestMetricV2(ctx, req.(*RawData))
 	}
 	return interceptor(ctx, in, info, handler)
 }

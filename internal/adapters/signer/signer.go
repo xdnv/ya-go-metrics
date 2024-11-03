@@ -32,6 +32,11 @@ func IsSignedMessagingEnabled() bool {
 	return signer.useSignedMessaging
 }
 
+// return strict security state of the signer module (YP compatibility)
+func IsStrictSignedMessagingEnabled() bool {
+	return signer.StrictSignedMessaging
+}
+
 // get signature for binary payload using stored security key
 func GetSignature(payload []byte) ([]byte, error) {
 	key := []byte(signer.MsgKey)
@@ -46,6 +51,16 @@ func GetSignatureByKey(payload []byte, key []byte) ([]byte, error) {
 		return nil, err
 	}
 	return h.Sum(nil), nil
+}
+
+// compares if given signature is equal to message body
+func Compare(signature *[]byte, body *[]byte) bool {
+	//calculate body signature
+	h := hmac.New(sha256.New, []byte(signer.MsgKey))
+	h.Write(*body)
+	bodySig := h.Sum(nil)
+
+	return hmac.Equal(*signature, bodySig)
 }
 
 // get HTTP request header used to store signature

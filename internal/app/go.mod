@@ -22,11 +22,14 @@ require (
 	golang.org/x/crypto v0.27.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/text v0.18.0 // indirect
+	internal/adapters/logger v1.0.0 // indirect
 )
 
 replace internal/adapters/cryptor => ../adapters/cryptor
 
 replace internal/adapters/firewall => ../adapters/firewall
+
+replace internal/adapters/logger => ../adapters/logger
 
 replace internal/adapters/signer => ../adapters/signer
 

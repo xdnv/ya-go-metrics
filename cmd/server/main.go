@@ -89,7 +89,7 @@ func main() {
 	//post-init unistorage actions
 	err := app.Stor.Bootstrap()
 	if err != nil {
-		logger.Fatal(fmt.Sprintf("srv: post-init bootstrap failed, error: %s", err))
+		logger.Fatalf("srv: post-init bootstrap failed, error: %s", err)
 	}
 
 	// run `server` in its own goroutine
@@ -122,17 +122,17 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// statically linked variables (YP iter20 requirement)
-	logger.Info(fmt.Sprintf("Build version: %s", naIfEmpty(buildVersion)))
-	logger.Info(fmt.Sprintf("Build date: %s", naIfEmpty(buildDate)))
-	logger.Info(fmt.Sprintf("Build commit: %s", naIfEmpty(buildCommit)))
+	logger.Infof("Build version: %s", naIfEmpty(buildVersion))
+	logger.Infof("Build date: %s", naIfEmpty(buildDate))
+	logger.Infof("Build commit: %s", naIfEmpty(buildCommit))
 
-	logger.Info(fmt.Sprintf("srv: transport mode %s", app.Sc.TransportMode))
-	logger.Info(fmt.Sprintf("srv: using endpoint %s", app.Sc.Endpoint))
-	logger.Info(fmt.Sprintf("srv: storage mode = %v", app.Sc.StorageMode))
-	logger.Info(fmt.Sprintf("srv: compress replies = %v %v", app.Sc.CompressReplies, app.Sc.CompressibleContentTypes))
-	logger.Info(fmt.Sprintf("srv: signed messaging = %v", signer.IsSignedMessagingEnabled()))
-	logger.Info(fmt.Sprintf("srv: encryption=%v", cryptor.CanDecrypt()))
-	logger.Info(fmt.Sprintf("srv: firewall=%v", firewall.IsFirewallEnabled()))
+	logger.Infof("srv: transport mode %s", app.Sc.TransportMode)
+	logger.Infof("srv: using endpoint %s", app.Sc.Endpoint)
+	logger.Infof("srv: storage mode = %v", app.Sc.StorageMode)
+	logger.Infof("srv: compress replies = %v %v", app.Sc.CompressReplies, app.Sc.CompressibleContentTypes)
+	logger.Infof("srv: signed messaging = %v", signer.IsSignedMessagingEnabled())
+	logger.Infof("srv: encryption=%v", cryptor.CanDecrypt())
+	logger.Infof("srv: firewall=%v", firewall.IsFirewallEnabled())
 
 	switch app.Sc.StorageMode {
 	case domain.Database:
@@ -144,22 +144,22 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 		// 		safeDSN[i] = "password=***"
 		// 	}
 		// }
-		// logger.Info(fmt.Sprintf("srv: DSN %s", strings.Join(safeDSN, " ")))
+		// logger.Infof("srv: DSN %s", strings.Join(safeDSN, " "))
 
 		//nu mode
 		re := regexp.MustCompile(`(password)=(?P<password>\S*)`)
 		s := re.ReplaceAllLiteralString(app.Sc.DatabaseDSN, "password=***")
-		logger.Info(fmt.Sprintf("srv: DSN %s", s))
+		logger.Infof("srv: DSN %s", s)
 
 	case domain.File:
-		logger.Info(fmt.Sprintf("srv: datafile %s", app.Sc.FileStoragePath))
+		logger.Infof("srv: datafile %s", app.Sc.FileStoragePath)
 	}
 
 	//read server state on start
 	if app.Sc.StorageMode == domain.File && app.Sc.RestoreMetrics {
 		err := app.Stor.LoadState(app.Sc.FileStoragePath)
 		if err != nil {
-			logger.Error(fmt.Sprintf("srv: failed to load server state from [%s], error: %s", app.Sc.FileStoragePath, err.Error()))
+			logger.Errorf("srv: failed to load server state from [%s], error: %s", app.Sc.FileStoragePath, err.Error())
 		}
 	}
 
@@ -196,7 +196,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	if app.Sc.StorageMode == domain.File {
 		err := app.Stor.SaveState(app.Sc.FileStoragePath)
 		if err != nil {
-			logger.Error(fmt.Sprintf("srv: failed to save server state to [%s], error: %s", app.Sc.FileStoragePath, err))
+			logger.Errorf("srv: failed to save server state to [%s], error: %s", app.Sc.FileStoragePath, err)
 		}
 	}
 
@@ -210,7 +210,7 @@ func serve_http() *http.Server {
 	mux.Use(firewall.HandleTrustedNetworkRequests)
 	mux.Use(signer.HandleSignedRequests)
 	mux.Use(handleGZIPRequests)
-	mux.Use(cryptor.HandleencryptedRequests)
+	mux.Use(cryptor.HandleEncryptedRequests)
 	if app.Sc.CompressReplies {
 		mux.Use(middleware.Compress(5, app.Sc.CompressibleContentTypes...))
 	}
@@ -234,7 +234,7 @@ func serve_http() *http.Server {
 	go func() {
 		// service connections
 		if err := srv.ListenAndServe(); err != nil {
-			logger.Error(fmt.Sprintf("Listen: %s", err.Error()))
+			logger.Errorf("Listen: %s", err.Error())
 		}
 	}()
 
@@ -256,11 +256,11 @@ func stateDumper(ctx context.Context, sc domain.ServerConfig, wg *sync.WaitGroup
 	for {
 		select {
 		case now := <-ticker.C:
-			logger.Info(fmt.Sprintf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05")))
+			logger.Infof("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05"))
 
 			err := app.Stor.SaveState(sc.FileStoragePath)
 			if err != nil {
-				logger.Error(fmt.Sprintf("srv-dumper: failed to save server state to [%s], error: %s", sc.FileStoragePath, err))
+				logger.Errorf("srv-dumper: failed to save server state to [%s], error: %s", sc.FileStoragePath, err)
 			}
 		case <-ctx.Done():
 			logger.Info("srv-dumper: stop requested")

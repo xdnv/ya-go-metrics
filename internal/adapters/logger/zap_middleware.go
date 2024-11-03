@@ -4,8 +4,6 @@ package logger
 import (
 	"net/http"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 // ResponseWriter object with additional fields (i.e. HTTP status code)
@@ -42,12 +40,6 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		duration := time.Since(start)
 
 		// Log the incoming request
-		zapLog.Info("Incoming request",
-			zap.String("method", r.Method),
-			zap.String("path", r.URL.Path),
-			zap.Int("status", rw.status),
-			zap.Duration("duration", duration),
-		)
-
+		CommandTrace(r.Method, r.URL.Path, rw.status, duration)
 	})
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
 
 	"internal/adapters/logger"
 	"internal/app"
@@ -66,21 +65,21 @@ func (s *grpcServer) RequestMetricV1(ctx context.Context, req *pb.Metric) (*pb.D
 }
 
 // grpc RequestMetricV2 processor
-func (s *grpcServer) RequestMetricV2(ctx context.Context, req *pb.DataRequest) (*pb.DataResponse, error) {
-	dr := new(pb.DataResponse)
+func (s *grpcServer) RequestMetricV2(ctx context.Context, req *pb.RawData) (*pb.RawData, error) {
+	dr := new(pb.RawData)
 
-	r := strings.NewReader(req.Message)
-	//r := bytes.NewBuffer(req.Message)
+	//r := strings.NewReader(req.Message)
+	r := bytes.NewBuffer(req.Message)
 	//logger.Info("RequestMetricV2: msg " + req.Message)
 
 	data, hs := app.RequestMetricV2(r)
 	if hs.Err != nil {
 		logger.Error("RequestMetricV2: " + hs.Message)
-		dr.Message = hs.Message
+		dr.Message = []byte(hs.Message)
 		return dr, hs.Err
 	}
 
-	dr.Message = string(*data)
+	dr.Message = *data
 	return dr, nil
 }
 

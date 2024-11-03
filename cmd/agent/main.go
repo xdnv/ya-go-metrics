@@ -30,11 +30,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
-
-	pb "internal/service"
 )
 
 var ac app.AgentConfig
@@ -129,43 +124,6 @@ func PostMessage(m *Message) (*Response, error) {
 	return res, nil
 }
 
-// simple GRPC post function based on Message input format
-func PostMessageGRPC(m *Message, bulkUpdate bool) (*Response, error) {
-	conn, err := grpc.NewClient(ac.Endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-
-	client := pb.NewMetricStorageClient(conn)
-
-	// Create metadata and a new context with the metadata
-	md := metadata.New(m.Metadata)
-	ctx := metadata.NewOutgoingContext(context.Background(), md)
-
-	br := new(pb.RawData)
-	br.Message = m.Body.Bytes()
-
-	//resp, err := client.UpdateMetricV1(context.Background(), mr)
-	var resp *pb.RawData
-	if bulkUpdate {
-		resp, err = client.UpdateMetrics(ctx, br)
-	} else {
-		resp, err = client.UpdateMetricV2(ctx, br)
-	}
-
-	if err != nil {
-		//log.Fatalf("Ошибка gRPC запроса: %v", err)
-		return nil, err
-	}
-
-	res := NewResponse()
-	res.StatusCode = 200
-	res.Status = string(resp.Message)
-
-	return res, nil
-}
-
 // extended HTTP post function based on Message input format, supports headers & more
 func PostMessageExtended(m *Message) (*Response, error) {
 
@@ -200,7 +158,14 @@ func PostValueV1(ctx context.Context, ac app.AgentConfig, counterType string, co
 	m.Address = fmt.Sprintf("http://%s/update/%s/%s/%s", ac.Endpoint, counterType, counterName, value)
 	m.ContentType = "text/plain"
 	m.Body = nil
-	return PostMessage(m)
+
+	switch ac.TransportMode {
+	case domain.TRANSPORT_HTTP:
+		return PostMessage(m)
+	case domain.TRANSPORT_GRPC:
+		return PostGRPC(ctx, ac, counterType, counterName, value)
+	}
+	return nil, errors.New("unsupported transport mode: " + ac.TransportMode)
 }
 
 // HTTP post metric value using API v2
@@ -245,11 +210,13 @@ func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*
 	// for security reasons, body has to be signed after compression & encryption
 	signMessage(m)
 
-	if ac.TransportMode == domain.TRANSPORT_HTTP {
+	switch ac.TransportMode {
+	case domain.TRANSPORT_HTTP:
 		return PostMessageExtended(m)
+	case domain.TRANSPORT_GRPC:
+		return PostMessageGRPC(m, ac.BulkUpdate)
 	}
-
-	return PostMessageGRPC(m, ac.BulkUpdate)
+	return nil, errors.New("unsupported transport mode: " + ac.TransportMode)
 }
 
 func signMessage(m *Message) error {
@@ -497,10 +464,10 @@ func sendPayload(ctx context.Context, ac app.AgentConfig, m *domain.MetricStorag
 func payloadSender(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup, id int, jobs <-chan uuid.UUID) {
 	defer wg.Done()
 
-	logger.Debug(fmt.Sprintf("rated-sender(%d): init", id))
+	logger.Debugf("rated-sender(%d): init", id)
 
 	for uid := range jobs {
-		logger.Info(fmt.Sprintf("rated-sender(%d): send metrics [%s]", id, uid))
+		logger.Infof("rated-sender(%d): send metrics [%s]", id, uid)
 
 		sendPayload(ctx, ac, ms)
 
@@ -508,7 +475,7 @@ func payloadSender(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup, 
 		//results <- nil
 	}
 
-	logger.Debug(fmt.Sprintf("rated-sender(%d): channel closed", id))
+	logger.Debugf("rated-sender(%d): channel closed", id)
 }
 
 func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics) (*Response, error) {
@@ -525,36 +492,36 @@ func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics)
 		case "counter":
 			vs = fmt.Sprintf("%d", *metric.Delta)
 		default:
-			logger.Error(fmt.Sprintf("sendMetric ERROR: unsupported metric type [%s]", metric.MType))
+			logger.Errorf("sendMetric ERROR: unsupported metric type [%s]", metric.MType)
 		}
 
 		resp, err = PostValueV1(ctx, ac, metric.MType, metric.ID, vs)
 	case "v2":
 		jsonres, jsonerr := json.Marshal(metric)
 		if jsonerr != nil {
-			logger.Error(fmt.Sprintf("sendMetric ERROR: JSON marshaling failed [%s]", jsonerr))
+			logger.Errorf("sendMetric ERROR: JSON marshaling failed [%s]", jsonerr)
 			return nil, jsonerr
 		}
 
 		buf := bytes.NewBuffer(jsonres)
 
-		logger.Debug(fmt.Sprintf("sendMetric: POST body %s", buf))
+		logger.Debugf("sendMetric: POST body %s", buf)
 
 		resp, err = PostValueV2(ctx, ac, buf)
 	default:
-		logger.Error(fmt.Sprintf("sendMetric ERROR: unsupported API version %s", ac.APIVersion))
+		logger.Errorf("sendMetric ERROR: unsupported API version %s", ac.APIVersion)
 	}
 
 	if err != nil {
-		logger.Error(fmt.Sprintf("sendMetric ERROR posting value: %s, %s", metric.ID, err))
+		logger.Errorf("sendMetric ERROR posting value: %s, %s", metric.ID, err)
 		return nil, err
 	}
 	//TODO: move or remove to stop using "resp" in this function
 	// switch to local Result structure with the same fields + body as bytes.Buffer
 	if resp.StatusCode != 200 {
-		logger.Info(fmt.Sprintf("response Code: %v", resp.StatusCode))
-		logger.Info(fmt.Sprintf("response Status: %v", resp.Status))
-		logger.Info(fmt.Sprintf("response Headers: %v", resp.Metadata))
+		logger.Infof("response Code: %v", resp.StatusCode)
+		logger.Infof("response Status: %v", resp.Status)
+		logger.Infof("response Headers: %v", resp.Metadata)
 	}
 	return resp, err
 }
@@ -564,13 +531,13 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 
 	jsonres, jsonerr := json.Marshal(ma)
 	if jsonerr != nil {
-		logger.Error(fmt.Sprintf("sendMetrics ERROR: JSON marshaling failed [%s]", jsonerr))
+		logger.Errorf("sendMetrics ERROR: JSON marshaling failed [%s]", jsonerr)
 		return nil, jsonerr
 	}
 
 	buf := bytes.NewBuffer(jsonres)
 
-	logger.Debug(fmt.Sprintf("sendMetrics: POST body %s", buf))
+	logger.Debugf("sendMetrics: POST body %s", buf)
 
 	backoff := func(ctx context.Context) error {
 		var err error
@@ -582,16 +549,16 @@ func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (
 
 	err := retrier.DoRetry(ctx, ac.MaxConnectionRetries, backoff)
 	if err != nil {
-		logger.Error(fmt.Sprintf("ERROR bulk posting, %s", err))
+		logger.Errorf("ERROR bulk posting, %s", err)
 		return nil, err
 	}
 
 	//TODO: move or remove to stop using "resp" in this function
 	// switch to local Result structure with the same fields + body as bytes.Buffer
 	if resp.StatusCode != 200 {
-		logger.Info(fmt.Sprintf("response Code: %v", resp.StatusCode))
-		logger.Info(fmt.Sprintf("response Status: %v", resp.Status))
-		logger.Info(fmt.Sprintf("response Headers: %v", resp.Metadata))
+		logger.Infof("response Code: %v", resp.StatusCode)
+		logger.Infof("response Status: %v", resp.Status)
+		logger.Infof("response Headers: %v", resp.Metadata)
 	}
 	return resp, nil
 }
@@ -656,22 +623,22 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// statically linked variables (YP iter20 requirement)
-	logger.Info(fmt.Sprintf("Build version: %s", naIfEmpty(buildVersion)))
-	logger.Info(fmt.Sprintf("Build date: %s", naIfEmpty(buildDate)))
-	logger.Info(fmt.Sprintf("Build commit: %s", naIfEmpty(buildCommit)))
+	logger.Infof("Build version: %s", naIfEmpty(buildVersion))
+	logger.Infof("Build date: %s", naIfEmpty(buildDate))
+	logger.Infof("Build commit: %s", naIfEmpty(buildCommit))
 
-	logger.Info(fmt.Sprintf("agent: transport mode %s", ac.TransportMode))
-	logger.Info(fmt.Sprintf("agent: using endpoint %s", ac.Endpoint))
-	logger.Info(fmt.Sprintf("agent: poll interval %d", ac.PollInterval))
-	logger.Info(fmt.Sprintf("agent: report interval %d", ac.ReportInterval))
-	logger.Info(fmt.Sprintf("agent: encryption=%v", cryptor.CanEncrypt()))
-	logger.Info(fmt.Sprintf("agent: signed messaging=%v", signer.IsSignedMessagingEnabled()))
-	logger.Info(fmt.Sprintf("agent: rate limit=%v", ac.RateLimit))
+	logger.Infof("agent: transport mode %s", ac.TransportMode)
+	logger.Infof("agent: using endpoint %s", ac.Endpoint)
+	logger.Infof("agent: poll interval %d", ac.PollInterval)
+	logger.Infof("agent: report interval %d", ac.ReportInterval)
+	logger.Infof("agent: encryption=%v", cryptor.CanEncrypt())
+	logger.Infof("agent: signed messaging=%v", signer.IsSignedMessagingEnabled())
+	logger.Infof("agent: rate limit=%v", ac.RateLimit)
 
 	//iter24: send local IP to server
 	localIP, err := getLocalIP()
 	if err != nil {
-		logger.Error(fmt.Sprintf("error getting local IP-address, %s", err.Error()))
+		logger.Errorf("error getting local IP-address, %s", err.Error())
 	}
 	agentIP = localIP
 
