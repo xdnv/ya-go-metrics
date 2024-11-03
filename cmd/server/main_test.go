@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"internal/app"
+	"internal/domain"
 	"internal/ports/storage"
 
 	"github.com/go-chi/chi/v5"
@@ -18,10 +19,10 @@ import (
 )
 
 var _ = func() bool {
-	var testSc = app.ServerConfig{StorageMode: app.Memory}
-	stor = storage.NewUniStorage(&testSc)
+	var testSc = domain.ServerConfig{StorageMode: domain.Memory}
+	app.Stor = storage.NewUniStorage(&testSc)
 	var tm = &storage.Gauge{Value: 4.5}
-	stor.SetMetric("main_test", tm)
+	app.Stor.SetMetric("main_test", tm)
 
 	testing.Init()
 	return true

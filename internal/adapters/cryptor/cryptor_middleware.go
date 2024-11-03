@@ -27,20 +27,28 @@ func HandleencryptedRequests(next http.Handler) http.Handler {
 			return
 		}
 
-		//passing body to next handler
-		body, _ := io.ReadAll(r.Body)
+		//reading out body
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			logger.Error("cryptor: error reading encrypted request body: " + err.Error())
+			http.Error(rw, "error reading encrypted request body", http.StatusInternalServerError)
+			return
+		}
 		r.Body.Close() //  must close
-		r.Body = io.NopCloser(bytes.NewBuffer(body))
 
 		if len(body) == 0 {
 			logger.Info("cryptor: empty body, no decryption required")
+
+			//passing body to next handler
+			r.Body = io.NopCloser(bytes.NewBuffer(body))
+			//r.Body = io.NopCloser(io.Reader(bytes.NewReader(body)))
 			next.ServeHTTP(rw, r)
 			return
 		}
 
 		logger.Info("cryptor: handling encrypted request")
 
-		decrBody, err := Decrypt(body)
+		decrBody, err := Decrypt(&body)
 		if err != nil {
 			logger.Error("cryptor: error decrypting payload: " + err.Error())
 			http.Error(rw, "server could not read encrypted message", http.StatusBadRequest)
@@ -48,6 +56,7 @@ func HandleencryptedRequests(next http.Handler) http.Handler {
 		}
 
 		r.Body = io.NopCloser(bytes.NewBuffer(decrBody))
+		//r.Body = io.NopCloser(io.Reader(bytes.NewReader(decrBody)))
 
 		logger.Info("cryptor: successfully decrypted")
 

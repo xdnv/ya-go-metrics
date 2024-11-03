@@ -1,5 +1,6 @@
-// the backoff module provides transparent sequential requests to objects which may be temporarily unavailable (i.e. network objects)
-package app
+// the retrier/backoff module provides transparent sequential requests to objects which may be temporarily unavailable (i.e. network objects)
+// WARNING: this is complete double of internal/adapters/retrier since storage referring "retrier" raises unfixable "replace" loopbacks in go mod tidy
+package storage
 
 import (
 	"context"

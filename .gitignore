@@ -33,3 +33,8 @@ cmd/keygen/public.pem
 cmd/agent/config.json
 cmd/server/config_db.json
 cmd/server/config_local.json
+cmd/server/config_db_grpc.json
+cmd/server/config_local_grpc.json
+cmd/agent/config_grpc.json
+cmd/agent/config_grpc_simple.json
+cmd/server/config_db_grpc_simple.json

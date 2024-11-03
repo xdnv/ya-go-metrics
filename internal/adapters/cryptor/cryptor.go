@@ -79,7 +79,7 @@ func Encrypt(data []byte) ([]byte, error) {
 	}
 
 	// Encrypt AES key using RSA
-	encryptedAESKey, err := EncryptRaw(aesKey, cryptor.PublicKey)
+	encryptedAESKey, err := EncryptRaw(&aesKey, cryptor.PublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -99,10 +99,10 @@ func Encrypt(data []byte) ([]byte, error) {
 	return jsonData, nil
 }
 
-func Decrypt(encryptedData []byte) ([]byte, error) {
+func Decrypt(encryptedData *[]byte) ([]byte, error) {
 	var payload EncryptedMessage
 
-	err := json.Unmarshal(encryptedData, &payload)
+	err := json.Unmarshal(*encryptedData, &payload)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func Decrypt(encryptedData []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	aesKey, err := DecryptRaw(encrAESKey, cryptor.PrivateKey)
+	aesKey, err := DecryptRaw(&encrAESKey, cryptor.PrivateKey)
 	if err != nil {
 		return nil, err
 	}

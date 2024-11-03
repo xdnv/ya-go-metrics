@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"internal/app"
+	"internal/domain"
 	"internal/ports/storage"
 
 	"internal/adapters/cryptor"
@@ -27,10 +28,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"google.golang.org/grpc"
 )
-
-var sc app.ServerConfig
-var stor *storage.UniStorage
 
 // statically linked variables (YP iter20 requirement)
 var buildVersion string
@@ -63,6 +62,7 @@ func handleGZIPRequests(next http.Handler) http.Handler {
 			return
 		}
 
+		r.Body.Close()
 		r.Body = io.NopCloser(bytes.NewBuffer(body))
 
 		next.ServeHTTP(rw, r)
@@ -81,13 +81,13 @@ func main() {
 	wg := sync.WaitGroup{}
 
 	//Warning! do not run outside function, it will break tests due to flag.Parse()
-	sc = app.InitServerConfig()
+	app.Sc = app.InitServerConfig()
 
-	stor = storage.NewUniStorage(&sc)
-	defer stor.Close()
+	app.Stor = storage.NewUniStorage(&app.Sc)
+	defer app.Stor.Close()
 
 	//post-init unistorage actions
-	err := stor.Bootstrap()
+	err := app.Stor.Bootstrap()
 	if err != nil {
 		logger.Fatal(fmt.Sprintf("srv: post-init bootstrap failed, error: %s", err))
 	}
@@ -126,15 +126,16 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	logger.Info(fmt.Sprintf("Build date: %s", naIfEmpty(buildDate)))
 	logger.Info(fmt.Sprintf("Build commit: %s", naIfEmpty(buildCommit)))
 
-	logger.Info(fmt.Sprintf("srv: using endpoint %s", sc.Endpoint))
-	logger.Info(fmt.Sprintf("srv: storage mode = %v", sc.StorageMode))
-	logger.Info(fmt.Sprintf("srv: compress replies = %v %v", sc.CompressReplies, sc.CompressibleContentTypes))
+	logger.Info(fmt.Sprintf("srv: transport mode %s", app.Sc.TransportMode))
+	logger.Info(fmt.Sprintf("srv: using endpoint %s", app.Sc.Endpoint))
+	logger.Info(fmt.Sprintf("srv: storage mode = %v", app.Sc.StorageMode))
+	logger.Info(fmt.Sprintf("srv: compress replies = %v %v", app.Sc.CompressReplies, app.Sc.CompressibleContentTypes))
 	logger.Info(fmt.Sprintf("srv: signed messaging = %v", signer.IsSignedMessagingEnabled()))
 	logger.Info(fmt.Sprintf("srv: encryption=%v", cryptor.CanDecrypt()))
 	logger.Info(fmt.Sprintf("srv: firewall=%v", firewall.IsFirewallEnabled()))
 
-	switch sc.StorageMode {
-	case app.Database:
+	switch app.Sc.StorageMode {
+	case domain.Database:
 		//remove password from log output
 		// //old mode
 		// var safeDSN = strings.Split(sc.DatabaseDSN, " ")
@@ -147,33 +148,71 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 
 		//nu mode
 		re := regexp.MustCompile(`(password)=(?P<password>\S*)`)
-		s := re.ReplaceAllLiteralString(sc.DatabaseDSN, "password=***")
+		s := re.ReplaceAllLiteralString(app.Sc.DatabaseDSN, "password=***")
 		logger.Info(fmt.Sprintf("srv: DSN %s", s))
 
-	case app.File:
-		logger.Info(fmt.Sprintf("srv: datafile %s", sc.FileStoragePath))
+	case domain.File:
+		logger.Info(fmt.Sprintf("srv: datafile %s", app.Sc.FileStoragePath))
 	}
 
 	//read server state on start
-	if sc.StorageMode == app.File && sc.RestoreMetrics {
-		err := stor.LoadState(sc.FileStoragePath)
+	if app.Sc.StorageMode == domain.File && app.Sc.RestoreMetrics {
+		err := app.Stor.LoadState(app.Sc.FileStoragePath)
 		if err != nil {
-			logger.Error(fmt.Sprintf("srv: failed to load server state from [%s], error: %s", sc.FileStoragePath, err.Error()))
+			logger.Error(fmt.Sprintf("srv: failed to load server state from [%s], error: %s", app.Sc.FileStoragePath, err.Error()))
 		}
 	}
 
 	//regular dumper
 	wg.Add(1)
-	go stateDumper(ctx, sc, wg)
+	go stateDumper(ctx, app.Sc, wg)
 
+	var srv *http.Server
+	var grpcSrv *grpc.Server
+
+	switch app.Sc.TransportMode {
+	case domain.TRANSPORT_HTTP:
+		srv = serve_http()
+	case domain.TRANSPORT_GRPC:
+		grpcSrv = serve_grpc()
+	}
+
+	<-ctx.Done()
+	logger.Info("srv: shutdown requested")
+
+	// shut down gracefully with timeout of 5 seconds max
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// graceful server shutdown
+	switch app.Sc.TransportMode {
+	case domain.TRANSPORT_HTTP:
+		srv.Shutdown(shutdownCtx) // ignore server error "Err shutting down server : context canceled"
+	case domain.TRANSPORT_GRPC:
+		grpcSrv.GracefulStop()
+	}
+
+	//save server state on shutdown
+	if app.Sc.StorageMode == domain.File {
+		err := app.Stor.SaveState(app.Sc.FileStoragePath)
+		if err != nil {
+			logger.Error(fmt.Sprintf("srv: failed to save server state to [%s], error: %s", app.Sc.FileStoragePath, err))
+		}
+	}
+
+	logger.Info("srv: server stopped")
+}
+
+// http server part
+func serve_http() *http.Server {
 	mux := chi.NewRouter()
 	mux.Use(logger.LoggerMiddleware)
 	mux.Use(firewall.HandleTrustedNetworkRequests)
-	mux.Use(cryptor.HandleencryptedRequests)
-	mux.Use(handleGZIPRequests)
 	mux.Use(signer.HandleSignedRequests)
-	if sc.CompressReplies {
-		mux.Use(middleware.Compress(5, sc.CompressibleContentTypes...))
+	mux.Use(handleGZIPRequests)
+	mux.Use(cryptor.HandleencryptedRequests)
+	if app.Sc.CompressReplies {
+		mux.Use(middleware.Compress(5, app.Sc.CompressibleContentTypes...))
 	}
 
 	mux.Get("/", handleIndex)
@@ -190,7 +229,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	mux.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
 
 	// create a server
-	srv := &http.Server{Addr: sc.Endpoint, Handler: mux}
+	srv := &http.Server{Addr: app.Sc.Endpoint, Handler: mux}
 
 	go func() {
 		// service connections
@@ -199,33 +238,15 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 		}
 	}()
 
-	<-ctx.Done()
-	logger.Info("srv: shutdown requested")
-
-	// shut down gracefully with timeout of 5 seconds max
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// ignore server error "Err shutting down server : context canceled"
-	srv.Shutdown(shutdownCtx)
-
-	//save server state on shutdown
-	if sc.StorageMode == app.File {
-		err := stor.SaveState(sc.FileStoragePath)
-		if err != nil {
-			logger.Error(fmt.Sprintf("srv: failed to save server state to [%s], error: %s", sc.FileStoragePath, err))
-		}
-	}
-
-	logger.Info("srv: server stopped")
+	return srv
 }
 
-func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
+func stateDumper(ctx context.Context, sc domain.ServerConfig, wg *sync.WaitGroup) {
 	//execute to exit wait group
 	defer wg.Done()
 
 	//save dump is disabled or set to immediate mode
-	if (sc.StorageMode != app.File) || (sc.StoreInterval == 0) {
+	if (sc.StorageMode != domain.File) || (sc.StoreInterval == 0) {
 		return
 	}
 
@@ -237,7 +258,7 @@ func stateDumper(ctx context.Context, sc app.ServerConfig, wg *sync.WaitGroup) {
 		case now := <-ticker.C:
 			logger.Info(fmt.Sprintf("TRACE: dump state [%s]\n", now.Format("2006-01-02 15:04:05")))
 
-			err := stor.SaveState(sc.FileStoragePath)
+			err := app.Stor.SaveState(sc.FileStoragePath)
 			if err != nil {
 				logger.Error(fmt.Sprintf("srv-dumper: failed to save server state to [%s], error: %s", sc.FileStoragePath, err))
 			}

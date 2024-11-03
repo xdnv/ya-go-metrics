@@ -69,15 +69,15 @@ func ReadPublicKey(path string) (*rsa.PublicKey, error) {
 	return key.(*rsa.PublicKey), nil
 }
 
-func EncryptRaw(data []byte, publicKey *rsa.PublicKey) ([]byte, error) {
-	return rsa.EncryptPKCS1v15(rand.Reader, publicKey, data)
+func EncryptRaw(data *[]byte, publicKey *rsa.PublicKey) ([]byte, error) {
+	return rsa.EncryptPKCS1v15(rand.Reader, publicKey, *data)
 }
 
-func DecryptRaw(encryptedData []byte, privateKey *rsa.PrivateKey) ([]byte, error) {
-	return rsa.DecryptPKCS1v15(rand.Reader, privateKey, encryptedData)
+func DecryptRaw(encryptedData *[]byte, privateKey *rsa.PrivateKey) ([]byte, error) {
+	return rsa.DecryptPKCS1v15(rand.Reader, privateKey, *encryptedData)
 }
 
-func EncryptStr(data []byte, publicKey *rsa.PublicKey) (string, error) {
+func EncryptStr(data *[]byte, publicKey *rsa.PublicKey) (string, error) {
 	encryptedBytes, err := EncryptRaw(data, publicKey)
 	if err != nil {
 		return "", err
@@ -87,5 +87,5 @@ func EncryptStr(data []byte, publicKey *rsa.PublicKey) (string, error) {
 
 func DecryptStr(encryptedData string, privateKey *rsa.PrivateKey) ([]byte, error) {
 	decodedData, _ := base64.StdEncoding.DecodeString(encryptedData)
-	return DecryptRaw(decodedData, privateKey)
+	return DecryptRaw(&decodedData, privateKey)
 }

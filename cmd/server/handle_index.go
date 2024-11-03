@@ -6,6 +6,7 @@ import (
 
 	"net/http"
 
+	"internal/app"
 	"internal/ports/storage"
 )
 
@@ -46,9 +47,9 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	htmlBody := fmt.Sprintf(indexTableHeaderTpl, "Metric", "Value")
 
-	metrics := stor.GetMetrics()
+	metrics := app.Stor.GetMetrics()
 	for _, key := range storage.SortKeys(metrics) {
-		metric, _ := stor.GetMetric(key)
+		metric, _ := app.Stor.GetMetric(key)
 		htmlBody += fmt.Sprintf(indexTableRowTpl, key, metric.GetValue())
 	}
 	htmlBody = fmt.Sprintf(indexTableTpl, htmlBody)

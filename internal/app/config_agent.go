@@ -11,10 +11,12 @@ import (
 
 	"internal/adapters/cryptor"
 	"internal/adapters/signer"
+	"internal/domain"
 )
 
 // agent configuration
 type AgentConfig struct {
+	TransportMode        string `json:"transport_mode,omitempty"`    // data exchange transport mode: http or grpc
 	Endpoint             string `json:"address,omitempty"`           // the address:port server endpoint to send metric data
 	ReportInterval       int64  `json:"report_interval,omitempty"`   // metric reporting frequency in seconds
 	PollInterval         int64  `json:"poll_interval,omitempty"`     // metric poll interval in seconds
@@ -34,13 +36,14 @@ type AgentConfig struct {
 func NewAgentConfig() AgentConfig {
 	return AgentConfig{
 		ConfigFilePath:   "",
-		Endpoint:         "localhost:8080",
+		TransportMode:    domain.TRANSPORT_HTTP,
+		Endpoint:         domain.ENDPOINT,
 		PollInterval:     2,
 		ReportInterval:   10,
 		RateLimit:        0,
 		MessageSignature: "",
 		CryptoKeyPath:    "",
-		LogLevel:         "info",
+		LogLevel:         domain.LOGLEVEL,
 	}
 }
 
@@ -73,6 +76,7 @@ func ParseAgentConfigFile(cf *AgentConfig) {
 		panic(fmt.Sprintf("PANIC: error decoding JSON config: %s", err.Error()))
 	}
 
+	cf.TransportMode = jcf.TransportMode
 	cf.Endpoint = jcf.Endpoint
 	cf.PollInterval = jcf.PollInterval
 	cf.ReportInterval = jcf.ReportInterval
@@ -87,7 +91,7 @@ func InitAgentConfig() AgentConfig {
 
 	cf := NewAgentConfig()
 	cf.APIVersion = "v2"        // activate JSON support
-	cf.UseCompression = true    // activate gzip compression
+	cf.UseCompression = false   // activate gzip compression //TODO: return to TRUE after debug will be finished
 	cf.BulkUpdate = true        // activate bulk JSON metric update
 	cf.MaxConnectionRetries = 3 // Connection retries for retriable functions (does not include original request. 0 to disable)
 	cf.ConfigFilePath = ""
@@ -97,6 +101,7 @@ func InitAgentConfig() AgentConfig {
 
 	//set defaults and read command line
 	flag.StringVar(&cf.ConfigFilePath, "config", cf.ConfigFilePath, "path to configuration file in JSON format") //used to pass Parse() check
+	flag.StringVar(&cf.TransportMode, "transport", cf.TransportMode, "data exchange transport mode: http or grpc")
 	flag.StringVar(&cf.Endpoint, "a", cf.Endpoint, "the address:port server endpoint to send metric data")
 	flag.Int64Var(&cf.PollInterval, "p", cf.PollInterval, "metric poll interval in seconds")
 	flag.Int64Var(&cf.ReportInterval, "r", cf.ReportInterval, "metric reporting frequency in seconds")
@@ -107,6 +112,9 @@ func InitAgentConfig() AgentConfig {
 	flag.Parse()
 
 	//parse env variables
+	if val, found := os.LookupEnv("TRANSPORT_MODE"); found {
+		cf.TransportMode = val
+	}
 	if val, found := os.LookupEnv("ADDRESS"); found {
 		cf.Endpoint = val
 	}
@@ -139,6 +147,9 @@ func InitAgentConfig() AgentConfig {
 	}
 
 	// check for critical missing config entries
+	if cf.TransportMode != domain.TRANSPORT_HTTP && cf.TransportMode != domain.TRANSPORT_GRPC {
+		panic("PANIC: application transport mode set incorrectly")
+	}
 	if cf.Endpoint == "" {
 		panic("PANIC: endpoint address:port is not set")
 	}
