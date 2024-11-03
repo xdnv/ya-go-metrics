@@ -172,9 +172,9 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 
 	switch app.Sc.TransportMode {
 	case domain.TRANSPORT_HTTP:
-		srv = serve_http()
+		srv = serveHTTP()
 	case domain.TRANSPORT_GRPC:
-		grpcSrv = serve_grpc()
+		grpcSrv = serveGRPC()
 	}
 
 	<-ctx.Done()
@@ -204,7 +204,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 }
 
 // http server part
-func serve_http() *http.Server {
+func serveHTTP() *http.Server {
 	mux := chi.NewRouter()
 	mux.Use(logger.LoggerMiddleware)
 	mux.Use(firewall.HandleTrustedNetworkRequests)

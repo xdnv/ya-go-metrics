@@ -252,7 +252,7 @@ func interceptEncryptedRequests(ctx context.Context, req interface{}, info *grpc
 }
 
 // main gRPC server routine
-func serve_grpc() *grpc.Server {
+func serveGRPC() *grpc.Server {
 
 	lis, err := net.Listen("tcp", app.Sc.Endpoint)
 	if err != nil {
