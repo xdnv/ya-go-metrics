@@ -330,21 +330,6 @@ func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 			ms.Gauges["NumGoroutine"] = float64(runtime.NumGoroutine()) // Number of goroutines
 			ms.Gauges["LiveObjects"] = float64(rtm.Mallocs - rtm.Frees) // Live objects = Mallocs - Frees
 
-			//moved to separate goroutine
-			// // add metrics from gopsutil
-			// vm, err := mem.VirtualMemory()
-			// if err == nil {
-			// 	ms.Gauges["TotalMemory"] = float64(vm.Total)
-			// 	ms.Gauges["FreeMemory"] = float64(vm.Free)
-			// }
-
-			// percentage, err := cpu.Percent(0, true)
-			// if err == nil {
-			// 	for idx, cpupercent := range percentage {
-			// 		ms.Gauges[fmt.Sprintf("CPUutilization%d", idx)] = float64(cpupercent)
-			// 	}
-			// }
-
 			ms.Unlock()
 		case <-ctx.Done():
 			logger.Info("agent-collector: stop requested")
