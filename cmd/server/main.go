@@ -2,17 +2,12 @@
 package main
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"fmt"
-	"io"
 	"net/http"
 	"net/http/pprof"
 	"os"
 	"os/signal"
 	"regexp"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -20,6 +15,7 @@ import (
 	"internal/app"
 	"internal/domain"
 	"internal/ports/storage"
+	"internal/transport/grpc_server"
 
 	"internal/adapters/cryptor"
 	"internal/adapters/firewall"
@@ -35,39 +31,6 @@ import (
 var buildVersion string
 var buildDate string
 var buildCommit string
-
-func handleGZIPRequests(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
-			next.ServeHTTP(rw, r)
-			return
-		}
-
-		logger.Info("srv-gzip: handling gzipped request")
-
-		gz, err := gzip.NewReader(r.Body)
-		if err != nil {
-			errText := fmt.Sprintf("error reading compressed msg body: %s", err.Error())
-			logger.Error("handleGZIPRequests: " + errText)
-			http.Error(rw, errText, http.StatusInternalServerError)
-			return
-		}
-
-		defer gz.Close()
-		body, err := io.ReadAll(gz)
-		if err != nil {
-			errText := fmt.Sprintf("error extracting msg body: %s", err.Error())
-			logger.Error("handleGZIPRequests: " + errText)
-			http.Error(rw, errText, http.StatusInternalServerError)
-			return
-		}
-
-		r.Body.Close()
-		r.Body = io.NopCloser(bytes.NewBuffer(body))
-
-		next.ServeHTTP(rw, r)
-	})
-}
 
 func main() {
 	//sync internal/logger upon exit
@@ -174,7 +137,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	case domain.TRANSPORT_HTTP:
 		srv = serveHTTP()
 	case domain.TRANSPORT_GRPC:
-		grpcSrv = serveGRPC()
+		grpcSrv = grpc_server.ServeGRPC()
 	}
 
 	<-ctx.Done()
