@@ -1,4 +1,4 @@
-package main
+package http_server
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 )
 
 // HTTP mass metric update processing
-func handleUpdateMetrics(w http.ResponseWriter, r *http.Request) {
+func HandleUpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	data, hs := app.UpdateMetrics(r.Body)

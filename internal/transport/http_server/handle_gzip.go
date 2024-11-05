@@ -1,4 +1,4 @@
-package main
+package http_server
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func handleGZIPRequests(next http.Handler) http.Handler {
+func HandleGZIPRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
 			next.ServeHTTP(rw, r)

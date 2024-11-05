@@ -3,7 +3,7 @@ module github.com/xdnv/ya-go-metrics
 go 1.22.7
 
 require (
-	github.com/go-chi/chi/v5 v5.0.12
+	github.com/go-chi/chi/v5 v5.1.0
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0 // indirect
 )
@@ -51,6 +51,10 @@ replace internal/service => ./internal/service
 require internal/transport/grpc_server v1.0.0
 
 replace internal/transport/grpc_server => ./internal/transport/grpc_server
+
+require internal/transport/http_server v1.0.0
+
+replace internal/transport/http_server => ./internal/transport/http_server
 
 require (
 	github.com/google/uuid v1.6.0

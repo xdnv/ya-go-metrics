@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"net/http"
-	"net/http/pprof"
 	"os"
 	"os/signal"
 	"regexp"
@@ -16,14 +15,13 @@ import (
 	"internal/domain"
 	"internal/ports/storage"
 	"internal/transport/grpc_server"
+	"internal/transport/http_server"
 
 	"internal/adapters/cryptor"
 	"internal/adapters/firewall"
 	"internal/adapters/logger"
 	"internal/adapters/signer"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"google.golang.org/grpc"
 )
 
@@ -135,7 +133,7 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 
 	switch app.Sc.TransportMode {
 	case domain.TRANSPORT_HTTP:
-		srv = serveHTTP()
+		srv = http_server.ServeHTTP()
 	case domain.TRANSPORT_GRPC:
 		grpcSrv = grpc_server.ServeGRPC()
 	}
@@ -164,44 +162,6 @@ func server(ctx context.Context, wg *sync.WaitGroup) {
 	}
 
 	logger.Info("srv: server stopped")
-}
-
-// http server part
-func serveHTTP() *http.Server {
-	mux := chi.NewRouter()
-	mux.Use(logger.LoggerMiddleware)
-	mux.Use(firewall.HandleTrustedNetworkRequests)
-	mux.Use(signer.HandleSignedRequests)
-	mux.Use(handleGZIPRequests)
-	mux.Use(cryptor.HandleEncryptedRequests)
-	if app.Sc.CompressReplies {
-		mux.Use(middleware.Compress(5, app.Sc.CompressibleContentTypes...))
-	}
-
-	mux.Get("/", handleIndex)
-	mux.Get("/ping", handlePingDBServer)
-	mux.Post("/value/", handleRequestMetricV2)
-	mux.Get("/value/{type}/{name}", handleRequestMetricV1)
-	mux.Post("/update/", handleUpdateMetricV2)
-	mux.Post("/update/{type}/{name}/{value}", handleUpdateMetricV1)
-	mux.Post("/updates/", handleUpdateMetrics)
-
-	mux.Mount("/debug/pprof/", http.HandlerFunc(pprof.Index))
-	mux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-	mux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
-	mux.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
-
-	// create a server
-	srv := &http.Server{Addr: app.Sc.Endpoint, Handler: mux}
-
-	go func() {
-		// service connections
-		if err := srv.ListenAndServe(); err != nil {
-			logger.Errorf("Listen: %s", err.Error())
-		}
-	}()
-
-	return srv
 }
 
 func stateDumper(ctx context.Context, sc domain.ServerConfig, wg *sync.WaitGroup) {
