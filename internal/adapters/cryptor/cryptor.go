@@ -8,12 +8,12 @@ import (
 
 // main cryptor object to store security configuration
 type CryptorObject struct {
-	UseEncryption bool            // enables or disables use of signature
+	useEncryption bool            // enables or disables encryption (regardless of keys loaded)
 	PrivateKey    *rsa.PrivateKey // secret key to en/decode payload
 	PublicKey     *rsa.PublicKey  // public key to encode payload
 }
 
-type PayloadObject struct {
+type EncryptedMessage struct {
 	Key     string `json:"key"`
 	Payload string `json:"payload"`
 }
@@ -25,15 +25,19 @@ func init() {
 }
 
 func EnableEncryption(encrypt bool) {
-	cryptor.UseEncryption = encrypt
+	cryptor.useEncryption = encrypt
+}
+
+func IsEncryptionEnabled() bool {
+	return cryptor.useEncryption
 }
 
 func CanEncrypt() bool {
-	return cryptor.UseEncryption && cryptor.PublicKey != nil
+	return cryptor.useEncryption && cryptor.PublicKey != nil
 }
 
 func CanDecrypt() bool {
-	return cryptor.UseEncryption && cryptor.PrivateKey != nil
+	return cryptor.useEncryption && cryptor.PrivateKey != nil
 }
 
 // loads private & public keys from file provided
@@ -75,13 +79,13 @@ func Encrypt(data []byte) ([]byte, error) {
 	}
 
 	// Encrypt AES key using RSA
-	encryptedAESKey, err := EncryptRaw(aesKey, cryptor.PublicKey)
+	encryptedAESKey, err := EncryptRaw(&aesKey, cryptor.PublicKey)
 	if err != nil {
 		return nil, err
 	}
 
 	//build payload data structure
-	payload := PayloadObject{
+	payload := EncryptedMessage{
 		Key:     base64.StdEncoding.EncodeToString(encryptedAESKey),
 		Payload: encryptedMessage,
 	}
@@ -95,10 +99,10 @@ func Encrypt(data []byte) ([]byte, error) {
 	return jsonData, nil
 }
 
-func Decrypt(encryptedData []byte) ([]byte, error) {
-	var payload PayloadObject
+func Decrypt(encryptedData *[]byte) ([]byte, error) {
+	var payload EncryptedMessage
 
-	err := json.Unmarshal(encryptedData, &payload)
+	err := json.Unmarshal(*encryptedData, &payload)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +113,7 @@ func Decrypt(encryptedData []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	aesKey, err := DecryptRaw(encrAESKey, cryptor.PrivateKey)
+	aesKey, err := DecryptRaw(&encrAESKey, cryptor.PrivateKey)
 	if err != nil {
 		return nil, err
 	}

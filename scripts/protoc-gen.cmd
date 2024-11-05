@@ -1,0 +1,2 @@
+# RUN FROM THE PROJECT ROOT
+protoc --proto_path=.\api\proto\v2 --go_out=.\internal\service --go_opt=paths=source_relative --go-grpc_out=.\internal\service --go-grpc_opt=paths=source_relative service.proto

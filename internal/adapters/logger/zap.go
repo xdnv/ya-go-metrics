@@ -2,6 +2,9 @@
 package logger
 
 import (
+	"fmt"
+	"time"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -45,6 +48,36 @@ func Error(message string, fields ...zap.Field) {
 // provides fatal level logging
 func Fatal(message string, fields ...zap.Field) {
 	zapLog.Fatal(message, fields...)
+}
+
+// provides info level logging with Sprintf functionality
+func Infof(format string, a ...any) {
+	zapLog.Info(fmt.Sprintf(format, a...))
+}
+
+// provides debug level logging with Sprintf functionality
+func Debugf(format string, a ...any) {
+	zapLog.Debug(fmt.Sprintf(format, a...))
+}
+
+// provides error level logging with Sprintf functionality
+func Errorf(format string, a ...any) {
+	zapLog.Error(fmt.Sprintf(format, a...))
+}
+
+// provides fatal level logging with Sprintf functionality
+func Fatalf(format string, a ...any) {
+	zapLog.Fatal(fmt.Sprintf(format, a...))
+}
+
+// standardized record function for command trace logging
+func CommandTrace(method string, path string, status int, duration time.Duration) {
+	zapLog.Info("Incoming request",
+		zap.String("method", method),
+		zap.String("path", path),
+		zap.Int("status", status),
+		zap.Duration("duration", duration),
+	)
 }
 
 // does log sync to prevent buffered data loss

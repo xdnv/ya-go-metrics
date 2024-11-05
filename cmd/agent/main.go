@@ -7,8 +7,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,6 +22,7 @@ import (
 
 	"internal/adapters/cryptor"
 	"internal/adapters/logger"
+	"internal/adapters/retrier"
 	"internal/adapters/signer"
 	"internal/app"
 	"internal/domain"
@@ -36,99 +40,241 @@ var buildVersion string
 var buildDate string
 var buildCommit string
 
-// HTTP post metric value using API v1
-func PostValueV1(ctx context.Context, ac app.AgentConfig, counterType string, counterName string, value string) (*http.Response, error) {
-	address := fmt.Sprintf("http://%s/update/%s/%s/%s", ac.Endpoint, counterType, counterName, value)
-	resp, err := http.Post(address, "text/plain", nil)
+// store agent IP address to send in header
+var agentIP string
+
+// universal Message data structure for both HTTP and gPRC communication
+type Message struct {
+	Address     string
+	ContentType string
+	Body        *bytes.Buffer
+	Metadata    map[string]string
+}
+
+// NewMessage constructor for Message
+func NewMessage() *Message {
+	return &Message{
+		Body:     new(bytes.Buffer),       // init Body as a new bytes.Buffer
+		Metadata: make(map[string]string), // init the map
+	}
+}
+
+// universal Response data structure for both HTTP and gPRC communication
+type Response struct {
+	StatusCode    int
+	Status        string
+	ContentLength int64
+	Body          *bytes.Buffer
+	Metadata      map[string][]string
+}
+
+// NewResponse constructor for Response
+func NewResponse() *Response {
+	return &Response{
+		Body:     new(bytes.Buffer),         // init Body as a new bytes.Buffer
+		Metadata: make(map[string][]string), // init the map
+	}
+}
+
+// converts the http.Response object to Response
+func NewHTTPResponse(r *http.Response) (*Response, error) {
+	res := &Response{
+		StatusCode:    r.StatusCode,
+		Status:        r.Status,
+		ContentLength: r.ContentLength,
+		Body:          new(bytes.Buffer),         // init Body as a new bytes.Buffer
+		Metadata:      make(map[string][]string), // init the map
+	}
+
+	//read out body
+	if _, err := io.Copy(res.Body, r.Body); err != nil {
+		return nil, err
+	}
+	defer r.Body.Close()
+
+	//read out Header copying all the slices
+	for key, values := range r.Header {
+		res.Metadata[key] = append([]string(nil), values...)
+	}
+
+	return res, nil
+}
+
+// simple HTTP post function
+func PostData(address string, contentType string, body *bytes.Buffer) (*http.Response, error) {
+	resp, err := http.Post(address, contentType, body)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	return resp, nil
 }
 
-// HTTP post metric value using API v2
-func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*http.Response, error) {
-	contentType := "application/json"
-
-	address := fmt.Sprintf("http://%s/updates/", ac.Endpoint)
-	if !ac.BulkUpdate {
-		address = fmt.Sprintf("http://%s/update/", ac.Endpoint)
-	}
-
-	//older API
-	if !ac.UseCompression {
-		resp, err := http.Post(address, contentType, body)
-		if err != nil {
-			return resp, err
-		}
-		return resp, nil
-	}
-
-	var buf bytes.Buffer
-
-	g := gzip.NewWriter(&buf)
-	if _, err := g.Write(body.Bytes()); err != nil {
-		return nil, err
-	}
-	if err := g.Close(); err != nil {
-		return nil, err
-	}
-
-	encrypted, err := encryptMessage(&buf)
+// simple HTTP post function based on Message input format
+func PostMessage(m *Message) (*Response, error) {
+	resp, err := http.Post(m.Address, m.ContentType, m.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	r, err := http.NewRequest("POST", address, &buf)
+	res, err := NewHTTPResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// extended HTTP post function based on Message input format, supports headers & more
+func PostMessageExtended(m *Message) (*Response, error) {
+
+	r, err := http.NewRequest("POST", m.Address, m.Body)
 	if err != nil {
 		return nil, err
 	}
 	defer r.Body.Close()
 	r.Close = true //whether to close the connection after replying to this request (for servers) or after sending the request (for clients).
 
-	r.Header.Set("Content-Type", contentType)
-	r.Header.Set("Content-Encoding", "gzip")
-	r.Header.Set("Accept-Encoding", "gzip")
-
-	if encrypted {
-		r.Header.Set("X-Encrypted", "true")
+	// set HTTP headers
+	for k, v := range m.Metadata {
+		r.Header.Set(k, v)
 	}
 
-	signMessage(r, body) //body has to be signed before compression since server checks signature of unpacked data
 	resp, err := http.DefaultClient.Do(r)
+	if err != nil {
+		return nil, err
+	}
 
-	return resp, err
+	res, err := NewHTTPResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
-func signMessage(r *http.Request, body *bytes.Buffer) error {
-	if !signer.UseSignedMessaging() {
+// HTTP post metric value using API v1
+func PostValueV1(ctx context.Context, ac app.AgentConfig, counterType string, counterName string, value string) (*Response, error) {
+	m := NewMessage()
+	m.Address = fmt.Sprintf("http://%s/update/%s/%s/%s", ac.Endpoint, counterType, counterName, value)
+	m.ContentType = "text/plain"
+	m.Body = nil
+
+	switch ac.TransportMode {
+	case domain.TRANSPORT_HTTP:
+		return PostMessage(m)
+	case domain.TRANSPORT_GRPC:
+		return PostGRPC(ctx, ac, counterType, counterName, value)
+	}
+	return nil, errors.New("unsupported transport mode: " + ac.TransportMode)
+}
+
+// HTTP post metric value using API v2
+func PostValueV2(ctx context.Context, ac app.AgentConfig, body *bytes.Buffer) (*Response, error) {
+	m := NewMessage()
+	m.ContentType = "application/json"
+	m.Body = body
+
+	m.Address = fmt.Sprintf("http://%s/updates/", ac.Endpoint)
+	if !ac.BulkUpdate {
+		m.Address = fmt.Sprintf("http://%s/update/", ac.Endpoint)
+	}
+
+	// //older API
+	// if !ac.UseCompression {
+	// 	return PostMessage(m)
+	// }
+
+	// set metadata for extended posting
+	m.Metadata["Content-Type"] = m.ContentType
+	m.Metadata["Accept-Encoding"] = "gzip"
+
+	// set real client IP
+	if agentIP != "" {
+		m.Metadata["X-Real-IP"] = agentIP
+	}
+
+	//optionally encrypt message
+	_, err := encryptMessage(m)
+	if err != nil {
+		return nil, err
+	}
+
+	//compress message
+	if ac.UseCompression {
+		err = compressMessage(m)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// for security reasons, body has to be signed after compression & encryption
+	signMessage(m)
+
+	switch ac.TransportMode {
+	case domain.TRANSPORT_HTTP:
+		return PostMessageExtended(m)
+	case domain.TRANSPORT_GRPC:
+		return PostMessageGRPC(m, ac.BulkUpdate)
+	}
+	return nil, errors.New("unsupported transport mode: " + ac.TransportMode)
+}
+
+func signMessage(m *Message) error {
+	if !signer.IsSignedMessagingEnabled() {
 		return nil
 	}
 
-	sig, err := signer.GetSignature(body.Bytes())
+	sig, err := signer.GetSignature(m.Body.Bytes())
 	if err != nil {
 		return err
 	}
 
-	//hmac.Equal
-	r.Header.Set(signer.GetSignatureToken(), base64.URLEncoding.EncodeToString(sig))
+	m.Metadata[signer.GetSignatureToken()] = base64.URLEncoding.EncodeToString(sig)
 
 	return nil
 }
 
-func encryptMessage(body *bytes.Buffer) (bool, error) {
+func encryptMessage(m *Message) (bool, error) {
 	if !cryptor.CanEncrypt() {
 		return false, nil
 	}
 
-	msg, err := cryptor.Encrypt(body.Bytes())
+	msg, err := cryptor.Encrypt(m.Body.Bytes())
 	if err != nil {
 		return false, err
 	}
-	body.Reset()    // Clear the buffer
-	body.Write(msg) // Write encrypted data back to buffer
+
+	m.Body.Reset()             // Clear the buffer
+	_, err = m.Body.Write(msg) // Write encrypted data back to buffer
+	if err != nil {
+		return false, err
+	}
+
+	m.Metadata["X-Encrypted"] = "true"
 
 	return true, nil
+}
+
+func compressMessage(m *Message) error {
+	var buf bytes.Buffer
+
+	g := gzip.NewWriter(&buf)
+	if _, err := g.Write(m.Body.Bytes()); err != nil {
+		return err
+	}
+	if err := g.Close(); err != nil {
+		return err
+	}
+
+	m.Body.Reset()                      // Clear the buffer
+	_, err := m.Body.Write(buf.Bytes()) // Write compressed data back to buffer
+	if err != nil {
+		return err
+	}
+
+	m.Metadata["Content-Encoding"] = "gzip"
+
+	return nil
 }
 
 func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
@@ -183,21 +329,6 @@ func collector(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup) {
 
 			ms.Gauges["NumGoroutine"] = float64(runtime.NumGoroutine()) // Number of goroutines
 			ms.Gauges["LiveObjects"] = float64(rtm.Mallocs - rtm.Frees) // Live objects = Mallocs - Frees
-
-			//moved to separate goroutine
-			// // add metrics from gopsutil
-			// vm, err := mem.VirtualMemory()
-			// if err == nil {
-			// 	ms.Gauges["TotalMemory"] = float64(vm.Total)
-			// 	ms.Gauges["FreeMemory"] = float64(vm.Free)
-			// }
-
-			// percentage, err := cpu.Percent(0, true)
-			// if err == nil {
-			// 	for idx, cpupercent := range percentage {
-			// 		ms.Gauges[fmt.Sprintf("CPUutilization%d", idx)] = float64(cpupercent)
-			// 	}
-			// }
 
 			ms.Unlock()
 		case <-ctx.Done():
@@ -289,9 +420,8 @@ func sendPayload(ctx context.Context, ac app.AgentConfig, m *domain.MetricStorag
 	}
 
 	if ac.BulkUpdate {
-		resp, err := sendMetrics(ctx, ac, ma)
+		_, err := sendMetrics(ctx, ac, ma)
 		if err == nil {
-			resp.Body.Close()
 			//reset counter after successful transefer
 			for k := range ma {
 				metric := ma[k]
@@ -304,9 +434,8 @@ func sendPayload(ctx context.Context, ac app.AgentConfig, m *domain.MetricStorag
 		for k := range ma {
 			metric := ma[k]
 
-			resp, err := sendMetric(ctx, ac, &metric)
+			_, err := sendMetric(ctx, ac, &metric)
 			if err == nil {
-				resp.Body.Close()
 				//reset counter after successful transefer
 				if metric.MType == "counter" {
 					m.Counters[metric.ID] = 0
@@ -320,10 +449,10 @@ func sendPayload(ctx context.Context, ac app.AgentConfig, m *domain.MetricStorag
 func payloadSender(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup, id int, jobs <-chan uuid.UUID) {
 	defer wg.Done()
 
-	logger.Debug(fmt.Sprintf("rated-sender(%d): init", id))
+	logger.Debugf("rated-sender(%d): init", id)
 
 	for uid := range jobs {
-		logger.Info(fmt.Sprintf("rated-sender(%d): send metrics [%s]", id, uid))
+		logger.Infof("rated-sender(%d): send metrics [%s]", id, uid)
 
 		sendPayload(ctx, ac, ms)
 
@@ -331,11 +460,11 @@ func payloadSender(ctx context.Context, ac app.AgentConfig, wg *sync.WaitGroup, 
 		//results <- nil
 	}
 
-	logger.Debug(fmt.Sprintf("rated-sender(%d): channel closed", id))
+	logger.Debugf("rated-sender(%d): channel closed", id)
 }
 
-func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics) (*http.Response, error) {
-	var resp *http.Response
+func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics) (*Response, error) {
+	var resp *Response
 	var err error
 
 	switch ac.APIVersion {
@@ -348,75 +477,98 @@ func sendMetric(ctx context.Context, ac app.AgentConfig, metric *domain.Metrics)
 		case "counter":
 			vs = fmt.Sprintf("%d", *metric.Delta)
 		default:
-			logger.Error(fmt.Sprintf("sendMetric ERROR: unsupported metric type [%s]", metric.MType))
+			logger.Errorf("sendMetric ERROR: unsupported metric type [%s]", metric.MType)
 		}
 
 		resp, err = PostValueV1(ctx, ac, metric.MType, metric.ID, vs)
 	case "v2":
 		jsonres, jsonerr := json.Marshal(metric)
 		if jsonerr != nil {
-			logger.Error(fmt.Sprintf("sendMetric ERROR: JSON marshaling failed [%s]", jsonerr))
+			logger.Errorf("sendMetric ERROR: JSON marshaling failed [%s]", jsonerr)
 			return nil, jsonerr
 		}
 
 		buf := bytes.NewBuffer(jsonres)
 
-		logger.Debug(fmt.Sprintf("sendMetric: POST body %s", buf))
+		logger.Debugf("sendMetric: POST body %s", buf)
 
 		resp, err = PostValueV2(ctx, ac, buf)
 	default:
-		logger.Error(fmt.Sprintf("sendMetric ERROR: unsupported API version %s", ac.APIVersion))
+		logger.Errorf("sendMetric ERROR: unsupported API version %s", ac.APIVersion)
 	}
 
 	if err != nil {
-		logger.Error(fmt.Sprintf("sendMetric ERROR posting value: %s, %s", metric.ID, err))
+		logger.Errorf("sendMetric ERROR posting value: %s, %s", metric.ID, err)
 		return nil, err
 	}
+	//TODO: move or remove to stop using "resp" in this function
+	// switch to local Result structure with the same fields + body as bytes.Buffer
 	if resp.StatusCode != 200 {
-		logger.Info(fmt.Sprintf("response Code: %v", resp.StatusCode))
-		logger.Info(fmt.Sprintf("response Status: %v", resp.Status))
-		logger.Info(fmt.Sprintf("response Headers: %v", resp.Header))
+		logger.Infof("response Code: %v", resp.StatusCode)
+		logger.Infof("response Status: %v", resp.Status)
+		logger.Infof("response Headers: %v", resp.Metadata)
 	}
 	return resp, err
 }
 
-func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (*http.Response, error) {
-	var resp *http.Response
+func sendMetrics(ctx context.Context, ac app.AgentConfig, ma []domain.Metrics) (*Response, error) {
+	var resp *Response
 
 	jsonres, jsonerr := json.Marshal(ma)
 	if jsonerr != nil {
-		logger.Error(fmt.Sprintf("sendMetrics ERROR: JSON marshaling failed [%s]", jsonerr))
+		logger.Errorf("sendMetrics ERROR: JSON marshaling failed [%s]", jsonerr)
 		return nil, jsonerr
 	}
 
 	buf := bytes.NewBuffer(jsonres)
 
-	logger.Debug(fmt.Sprintf("sendMetrics: POST body %s", buf))
+	logger.Debugf("sendMetrics: POST body %s", buf)
 
 	backoff := func(ctx context.Context) error {
-		//var err error
+		var err error
 
-		bresp, err := PostValueV2(ctx, ac, buf)
-		resp = bresp //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
-		if err == nil {
-			bresp.Body.Close() //handle linter bug, does not see body closure. set //nolint:bodyerror in prod environment
-		}
+		resp, err = PostValueV2(ctx, ac, buf)
 
-		return app.HandleRetriableWeb(err, "error sending data")
+		return retrier.HandleRetriableWeb(err, "error sending data")
 	}
 
-	err := app.DoRetry(ctx, ac.MaxConnectionRetries, backoff)
+	err := retrier.DoRetry(ctx, ac.MaxConnectionRetries, backoff)
 	if err != nil {
-		logger.Error(fmt.Sprintf("ERROR bulk posting, %s", err))
+		logger.Errorf("ERROR bulk posting, %s", err)
 		return nil, err
 	}
 
+	//TODO: move or remove to stop using "resp" in this function
+	// switch to local Result structure with the same fields + body as bytes.Buffer
 	if resp.StatusCode != 200 {
-		logger.Info(fmt.Sprintf("response Code: %v", resp.StatusCode))
-		logger.Info(fmt.Sprintf("response Status: %v", resp.Status))
-		logger.Info(fmt.Sprintf("response Headers: %v", resp.Header))
+		logger.Infof("response Code: %v", resp.StatusCode)
+		logger.Infof("response Status: %v", resp.Status)
+		logger.Infof("response Headers: %v", resp.Metadata)
 	}
 	return resp, nil
+}
+
+// returns first non-loopback local IP address
+func getLocalIP() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", err
+	}
+
+	var localIP string
+	for _, addr := range addrs {
+		// Check if address is IPv4 and not loopback
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && ipnet.IP.To4() != nil {
+			localIP = ipnet.IP.String()
+			break
+		}
+	}
+
+	if localIP == "" {
+		return "", errors.New("no valid local IP address found")
+	}
+
+	return localIP, nil
 }
 
 // global metric storage
@@ -456,16 +608,24 @@ func agent(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	// statically linked variables (YP iter20 requirement)
-	logger.Info(fmt.Sprintf("Build version: %s", naIfEmpty(buildVersion)))
-	logger.Info(fmt.Sprintf("Build date: %s", naIfEmpty(buildDate)))
-	logger.Info(fmt.Sprintf("Build commit: %s", naIfEmpty(buildCommit)))
+	logger.Infof("Build version: %s", naIfEmpty(buildVersion))
+	logger.Infof("Build date: %s", naIfEmpty(buildDate))
+	logger.Infof("Build commit: %s", naIfEmpty(buildCommit))
 
-	logger.Info(fmt.Sprintf("agent: using endpoint %s", ac.Endpoint))
-	logger.Info(fmt.Sprintf("agent: poll interval %d", ac.PollInterval))
-	logger.Info(fmt.Sprintf("agent: report interval %d", ac.ReportInterval))
-	logger.Info(fmt.Sprintf("agent: encryption=%v", cryptor.CanEncrypt()))
-	logger.Info(fmt.Sprintf("agent: signed messaging=%v", signer.UseSignedMessaging()))
-	logger.Info(fmt.Sprintf("agent: rate limit=%v", ac.RateLimit))
+	logger.Infof("agent: transport mode %s", ac.TransportMode)
+	logger.Infof("agent: using endpoint %s", ac.Endpoint)
+	logger.Infof("agent: poll interval %d", ac.PollInterval)
+	logger.Infof("agent: report interval %d", ac.ReportInterval)
+	logger.Infof("agent: encryption=%v", cryptor.CanEncrypt())
+	logger.Infof("agent: signed messaging=%v", signer.IsSignedMessagingEnabled())
+	logger.Infof("agent: rate limit=%v", ac.RateLimit)
+
+	//iter24: send local IP to server
+	localIP, err := getLocalIP()
+	if err != nil {
+		logger.Errorf("error getting local IP-address, %s", err.Error())
+	}
+	agentIP = localIP
 
 	//add optional rate limiter as required by technical specs
 	if ac.UseRateLimit {

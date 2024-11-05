@@ -3,10 +3,7 @@ package signer
 
 import (
 	"bytes"
-	"crypto/hmac"
-	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -17,7 +14,7 @@ import (
 func HandleSignedRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 
-		if !signer.UseSignedMessaging {
+		if !IsSignedMessagingEnabled() {
 			next.ServeHTTP(rw, r)
 			return
 		}
@@ -46,12 +43,9 @@ func HandleSignedRequests(next http.Handler) http.Handler {
 		}
 
 		//calculate body signature
-		h := hmac.New(sha256.New, []byte(signer.MsgKey))
-		h.Write(body)
-		bodySig := h.Sum(nil)
-
-		if !hmac.Equal(sig, bodySig) {
-			if signer.StrictSignedMessaging {
+		ok := Compare(&sig, &body)
+		if !ok {
+			if IsStrictSignedMessagingEnabled() {
 				logger.Error("signer: message security check failed")
 				http.Error(rw, "message security check failed", http.StatusBadRequest)
 				return
@@ -60,7 +54,7 @@ func HandleSignedRequests(next http.Handler) http.Handler {
 			//non-strict mode passes yandex iter14 test: yandex gives no actual signature, just a key on startup
 			logger.Error("signer: non-strict message security check FAILED")
 		} else {
-			logger.Info(fmt.Sprint("signer: signature OK, id=", sig))
+			logger.Infof("signer: signature OK, id=%s", sig)
 		}
 
 		next.ServeHTTP(rw, r)

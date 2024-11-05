@@ -1,10 +1,10 @@
-// the backoff module provides transparent sequential requests to objects which may be temporarily unavailable (i.e. network objects)
-package app
+// the retrier/backoff module provides transparent sequential requests to objects which may be temporarily unavailable (i.e. network objects)
+// WARNING: this is complete double of internal/adapters/retrier since storage referring "retrier" raises unfixable "replace" loopbacks in go mod tidy
+package storage
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"internal/adapters/logger"
@@ -59,7 +59,7 @@ func DoRetry(ctx context.Context, max uint64, f func(ctx context.Context) error)
 // handle web retry errors with respective logging
 func HandleRetriableWeb(err error, retryMessage string) error {
 	if err != nil {
-		logger.Error(fmt.Sprintf("%s, retry: %v", retryMessage, err))
+		logger.Errorf("%s, retry: %v", retryMessage, err)
 		return retry.RetryableError(err)
 	}
 	return nil
@@ -72,10 +72,10 @@ func HandleRetriableDB(err error, retryMessage string) error {
 		var pgErr *pgconn.PgError
 		//if errors.As(err, &pgErr) && pgerrcode.IsInvalidCatalogName(pgErr.Code) { ////debug line with wrong database name error subclass
 		if errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
-			logger.Error(fmt.Sprintf("%s, retry: %v", retryMessage, err))
+			logger.Errorf("%s, retry: %v", retryMessage, err)
 			return retry.RetryableError(err)
 		} else {
-			logger.Error(fmt.Sprintf("%s, FATAL: %v", retryMessage, err))
+			logger.Errorf("%s, FATAL: %v", retryMessage, err)
 			return err
 		}
 

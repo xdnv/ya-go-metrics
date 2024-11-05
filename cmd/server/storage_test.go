@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"internal/app"
+	"internal/domain"
 	. "internal/ports/storage"
 
 	"github.com/stretchr/testify/assert"
@@ -72,8 +72,8 @@ func TestNewMemStorage(t *testing.T) {
 	// 	})
 	// }
 
-	var testSc = new(app.ServerConfig)
-	testSc.StorageMode = app.Memory
+	var testSc = new(domain.ServerConfig)
+	testSc.StorageMode = domain.Memory
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,8 +108,8 @@ func TestNewMemStorage(t *testing.T) {
 
 // MemStorage performance benchmark
 func BenchmarkMemStorage(b *testing.B) {
-	var testSc = new(app.ServerConfig)
-	testSc.StorageMode = app.Memory
+	var testSc = new(domain.ServerConfig)
+	testSc.StorageMode = domain.Memory
 	var tstor = NewUniStorage(testSc)
 
 	b.Run("gauges_update", func(b *testing.B) {

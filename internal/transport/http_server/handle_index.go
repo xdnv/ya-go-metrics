@@ -1,4 +1,4 @@
-package main
+package http_server
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 
 	"net/http"
 
+	"internal/app"
 	"internal/ports/storage"
 )
 
@@ -32,7 +33,7 @@ const indexTableHeaderTpl = "<tr><th>%s</th><th>%v</th></tr>"
 const indexTableRowTpl = "<tr><td>%s</td><td style=\"text-align: right;\">%v</td></tr>"
 
 // index page handler
-func handleIndex(w http.ResponseWriter, r *http.Request) {
+func HandleIndex(w http.ResponseWriter, r *http.Request) {
 	//check for malformed requests - only exact root path accepted
 	//Important: covered by tests, removal will bring tests to fail
 	if r.URL.Path != "/" {
@@ -46,9 +47,9 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	htmlBody := fmt.Sprintf(indexTableHeaderTpl, "Metric", "Value")
 
-	metrics := stor.GetMetrics()
+	metrics := app.Stor.GetMetrics()
 	for _, key := range storage.SortKeys(metrics) {
-		metric, _ := stor.GetMetric(key)
+		metric, _ := app.Stor.GetMetric(key)
 		htmlBody += fmt.Sprintf(indexTableRowTpl, key, metric.GetValue())
 	}
 	htmlBody = fmt.Sprintf(indexTableTpl, htmlBody)

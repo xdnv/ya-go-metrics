@@ -10,7 +10,9 @@ import (
 	"testing"
 
 	"internal/app"
+	"internal/domain"
 	"internal/ports/storage"
+	"internal/transport/http_server"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -18,10 +20,10 @@ import (
 )
 
 var _ = func() bool {
-	var testSc = app.ServerConfig{StorageMode: app.Memory}
-	stor = storage.NewUniStorage(&testSc)
+	var testSc = domain.ServerConfig{StorageMode: domain.Memory}
+	app.Stor = storage.NewUniStorage(&testSc)
 	var tm = &storage.Gauge{Value: 4.5}
-	stor.SetMetric("main_test", tm)
+	app.Stor.SetMetric("main_test", tm)
 
 	testing.Init()
 	return true
@@ -52,7 +54,7 @@ func Test_index(t *testing.T) {
 				statusCode:  200,
 				bodyHeader:  "<html>",
 			},
-			handler: handleIndex,
+			handler: http_server.HandleIndex,
 			request: "/",
 			method:  http.MethodGet,
 		},
@@ -63,7 +65,7 @@ func Test_index(t *testing.T) {
 				statusCode:  http.StatusNotFound,
 				bodyHeader:  "",
 			},
-			handler: handleIndex,
+			handler: http_server.HandleIndex,
 			request: "/bla",
 			method:  http.MethodGet,
 		},
@@ -74,7 +76,7 @@ func Test_index(t *testing.T) {
 				statusCode:  http.StatusBadRequest,
 				bodyHeader:  "",
 			},
-			handler: handlePingDBServer,
+			handler: http_server.HandlePingDBServer,
 			request: "/ping",
 			method:  http.MethodGet,
 		},
@@ -85,7 +87,7 @@ func Test_index(t *testing.T) {
 				statusCode:  200,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetricV1,
+			handler: http_server.HandleUpdateMetricV1,
 			request: "/update/gauge/DemoGauge/1.1",
 			method:  http.MethodPost,
 			params: map[string]string{
@@ -101,7 +103,7 @@ func Test_index(t *testing.T) {
 				statusCode:  200,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetricV1,
+			handler: http_server.HandleUpdateMetricV1,
 			request: "/update/counter/DemoCounter/25",
 			method:  http.MethodPost,
 			params: map[string]string{
@@ -117,7 +119,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetricV1,
+			handler: http_server.HandleUpdateMetricV1,
 			request: "/update/gaugeZ/DemoGauge/1.1",
 			method:  http.MethodPost,
 			params: map[string]string{
@@ -133,7 +135,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetricV1,
+			handler: http_server.HandleUpdateMetricV1,
 			request: "/update/counterZ/DemoCounter/25",
 			method:  http.MethodPost,
 			params: map[string]string{
@@ -149,7 +151,7 @@ func Test_index(t *testing.T) {
 				statusCode:  200,
 				bodyHeader:  "1.1",
 			},
-			handler: handleRequestMetricV1,
+			handler: http_server.HandleRequestMetricV1,
 			request: "/value/gauge/DemoGauge",
 			method:  http.MethodGet,
 			params: map[string]string{
@@ -164,7 +166,7 @@ func Test_index(t *testing.T) {
 				statusCode:  200,
 				bodyHeader:  "25",
 			},
-			handler: handleRequestMetricV1,
+			handler: http_server.HandleRequestMetricV1,
 			request: "/value/counter/DemoCounter",
 			method:  http.MethodGet,
 			params: map[string]string{
@@ -179,7 +181,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleRequestMetricV1,
+			handler: http_server.HandleRequestMetricV1,
 			request: "/value/gaugeZ/DemoGauge",
 			method:  http.MethodGet,
 			params: map[string]string{
@@ -194,7 +196,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleRequestMetricV1,
+			handler: http_server.HandleRequestMetricV1,
 			request: "/value/counterZ/DemoCounter",
 			method:  http.MethodGet,
 			params: map[string]string{
@@ -209,7 +211,7 @@ func Test_index(t *testing.T) {
 				statusCode:  404,
 				bodyHeader:  "",
 			},
-			handler: handleRequestMetricV1,
+			handler: http_server.HandleRequestMetricV1,
 			request: "/value/counterZ/DemoCounter",
 			method:  http.MethodGet,
 			params: map[string]string{
@@ -224,7 +226,7 @@ func Test_index(t *testing.T) {
 				statusCode:  200,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetricV2,
+			handler: http_server.HandleUpdateMetricV2,
 			request: "/update/",
 			method:  http.MethodPost,
 			body:    `{"type": "gauge", "id": "DemoGaugev2", "value": 3.3}`,
@@ -236,7 +238,7 @@ func Test_index(t *testing.T) {
 				statusCode:  200,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetricV2,
+			handler: http_server.HandleUpdateMetricV2,
 			request: "/update/",
 			method:  http.MethodPost,
 			body:    `{"type": "counter", "id": "DemoCounterV2", "delta": 30}`,
@@ -248,7 +250,7 @@ func Test_index(t *testing.T) {
 				statusCode:  404,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetricV2,
+			handler: http_server.HandleUpdateMetricV2,
 			request: "/update/",
 			method:  http.MethodPost,
 			body:    `{"type": "gaugeZ", "id": "DemoGaugev2", "value": 3.3}`,
@@ -260,7 +262,7 @@ func Test_index(t *testing.T) {
 				statusCode:  404,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetricV2,
+			handler: http_server.HandleUpdateMetricV2,
 			request: "/update/",
 			method:  http.MethodPost,
 			body:    `{"type": "counterZ", "id": "DemoCounterV2", "delta": 30}`,
@@ -272,7 +274,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetricV2,
+			handler: http_server.HandleUpdateMetricV2,
 			request: "/update/",
 			method:  http.MethodPost,
 			body:    `{"type": "gaugeZ", "name": "DemoGaugev2", "value": 3.3}`,
@@ -284,7 +286,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetricV2,
+			handler: http_server.HandleUpdateMetricV2,
 			request: "/update/",
 			method:  http.MethodPost,
 			body:    `{"type": "counterZ", "name": "DemoCounterV2", "delta": 30}`,
@@ -296,7 +298,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetricV2,
+			handler: http_server.HandleUpdateMetricV2,
 			request: "/update/",
 			method:  http.MethodPost,
 			body:    `this is just poorly-formed JSON`,
@@ -308,7 +310,7 @@ func Test_index(t *testing.T) {
 				statusCode:  200,
 				bodyHeader:  `"value":3.3`,
 			},
-			handler: handleRequestMetricV2,
+			handler: http_server.HandleRequestMetricV2,
 			request: "/value/",
 			method:  http.MethodPost,
 			body:    `{"type": "gauge", "id": "DemoGaugev2"}`,
@@ -320,7 +322,7 @@ func Test_index(t *testing.T) {
 				statusCode:  200,
 				bodyHeader:  `"delta":30`,
 			},
-			handler: handleRequestMetricV2,
+			handler: http_server.HandleRequestMetricV2,
 			request: "/value/",
 			method:  http.MethodPost,
 			body:    `{"type": "counter", "id": "DemoCounterV2"}`,
@@ -332,7 +334,7 @@ func Test_index(t *testing.T) {
 				statusCode:  404,
 				bodyHeader:  "",
 			},
-			handler: handleRequestMetricV2,
+			handler: http_server.HandleRequestMetricV2,
 			request: "/value/",
 			method:  http.MethodPost,
 			body:    `{"type": "gaugeZ", "id": "DemoGaugev2"}`,
@@ -344,7 +346,7 @@ func Test_index(t *testing.T) {
 				statusCode:  404,
 				bodyHeader:  "",
 			},
-			handler: handleRequestMetricV2,
+			handler: http_server.HandleRequestMetricV2,
 			request: "/value/",
 			method:  http.MethodPost,
 			body:    `{"type": "counterZ", "id": "DemoCounterV2"}`,
@@ -356,7 +358,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleRequestMetricV2,
+			handler: http_server.HandleRequestMetricV2,
 			request: "/value/",
 			method:  http.MethodPost,
 			body:    `{"type": "gaugeZ", "name": "DemoGaugev2"}`,
@@ -368,7 +370,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleRequestMetricV2,
+			handler: http_server.HandleRequestMetricV2,
 			request: "/value/",
 			method:  http.MethodPost,
 			body:    `{"type": "counterZ", "name": "DemoCounterV2"}`,
@@ -380,7 +382,7 @@ func Test_index(t *testing.T) {
 				statusCode:  404,
 				bodyHeader:  "",
 			},
-			handler: handleRequestMetricV2,
+			handler: http_server.HandleRequestMetricV2,
 			request: "/value/",
 			method:  http.MethodPost,
 			body:    `{"type": "gauge", "id": "DemoGaugev2_ERR"}`,
@@ -392,7 +394,7 @@ func Test_index(t *testing.T) {
 				statusCode:  404,
 				bodyHeader:  "",
 			},
-			handler: handleRequestMetricV2,
+			handler: http_server.HandleRequestMetricV2,
 			request: "/value/",
 			method:  http.MethodPost,
 			body:    `{"type": "counter", "id": "DemoCounterV2_ERR"}`,
@@ -404,7 +406,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleRequestMetricV2,
+			handler: http_server.HandleRequestMetricV2,
 			request: "/value/",
 			method:  http.MethodPost,
 			body:    `this is just poorly-formed JSON`,
@@ -416,7 +418,7 @@ func Test_index(t *testing.T) {
 				statusCode:  200,
 				bodyHeader:  `"delta":100`,
 			},
-			handler: handleUpdateMetrics,
+			handler: http_server.HandleUpdateMetrics,
 			request: "/updates/",
 			method:  http.MethodPost,
 			body:    `[{"type": "gauge", "id": "DemoGaugeMASS", "value": 5.5},{"type": "counter", "id": "DemoCounterMASS", "delta": 100}]`,
@@ -428,7 +430,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetrics,
+			handler: http_server.HandleUpdateMetrics,
 			request: "/updates/",
 			method:  http.MethodPost,
 			body:    `[{"type": "gaugeZ", "id": "DemoGaugeMASS", "value": 5.5},{"type": "counterZ", "id": "DemoCounterMASS", "delta": 100}]`,
@@ -440,7 +442,7 @@ func Test_index(t *testing.T) {
 				statusCode:  400,
 				bodyHeader:  "",
 			},
-			handler: handleUpdateMetrics,
+			handler: http_server.HandleUpdateMetrics,
 			request: "/updates/",
 			method:  http.MethodPost,
 			body:    `this is just poorly-formed JSON`,

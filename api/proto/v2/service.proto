@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package service;
+option go_package = "internal/service";
+
+
+service MetricStorage {
+    rpc GetMetrics(EmptyRequest) returns (Metrics);
+    rpc PingDB(EmptyRequest) returns (DataResponse);
+    rpc RequestMetricV1(Metric) returns (DataResponse);
+    rpc RequestMetricV2(RawData) returns (RawData);
+    rpc UpdateMetricV1(Metric) returns (DataResponse);
+    rpc UpdateMetricV2(RawData) returns (RawData);
+    rpc UpdateMetrics(RawData) returns (RawData);
+}
+
+message EmptyRequest {}
+
+message Metric {
+    string type = 1;
+    string name = 2;
+    string value = 3;
+}
+
+message Metrics {
+    repeated Metric data = 1;
+}
+
+message MetricsRaw {
+    repeated MetricRaw data = 1;
+}
+
+message MetricRaw {
+    string type = 1;
+    string name = 2;
+    
+    oneof value { // support different metric types
+        double float_value = 3; // float64 for Gauge
+        uint64 uint_value = 4;   // uint64 for Counter
+    }
+}
+
+message ServiceResponse {
+    string message = 1;
+    bool is_error = 2;
+    string error = 3;
+}
+
+message DictDataRequest {
+    repeated KeyValuePair data = 1; // Массив пар "Имя-значение"
+}
+
+message KeyValuePair {
+    string key = 1;
+    double value = 2; // Используем double для float64
+}
+
+message DataRequest {
+    string message = 1;
+}
+
+message DataResponse {
+    string message = 1;
+}
+
+message RawData {
+    bytes message = 1;
+}
